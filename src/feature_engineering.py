@@ -1,93 +1,119 @@
 import os
-import logging
 import pandas as pd
 import numpy as np
-from sklearn.feature_selection import mutual_info_classif, mutual_info_score
-from scipy.stats import entropy
-from sklearn.ensemble import RandomForestClassifier
-import shap
-
-# --- Logger Setup ---
-logger = logging.getLogger('Feature-Engineering')
-logger.setLevel(logging.DEBUG)
-
-log_loc = os.path.join(os.getcwd(), 'logs')
-os.makedirs(log_loc, exist_ok=True)
-fh = logging.FileHandler(os.path.join(log_loc, 'feature_engineering.log'))
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                              datefmt="%Y-%m-%d %H:%M:%S")
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-
+import logging
 
 class FeatureEngineering:
-    def __init__(self, df_valid, cat_cols):
-        self.df_valid = df_valid.copy()
-        self.cat_cols = cat_cols
-        self.mi_scores = None
-        self.gain_ratios = None
-        self.shap_values = None
-        self.important_features = None
+    """
+    Performs feature engineering on the preprocessed dataset.
+    Handles:
+        - Interaction features between weather and soil
+        - Polynomial features for key numeric columns
+        - Aggregated features by district
+        - Saving the feature-engineered dataset
+    """
 
-    def compute_information_gain(self):
-        logger.info("Calculating Mutual Information (Information Gain) scores.")
-        X = self.df_valid.drop(columns=['area', 'ap_ratio', 'production', 'crop_name_enc', 'production_log'], errors='ignore')
-        y = self.df_valid['crop_name_enc']
-        discrete_mask = X.columns.isin(self.cat_cols)
+    def __init__(self, df: pd.DataFrame, save_path: str = "./data/featured/featured_data.csv", log_dir: str = "logs"):
+        """
+        Initializes the FeatureEngineering pipeline.
 
-        mi_scores = mutual_info_classif(X, y, discrete_features=discrete_mask, random_state=42)
-        self.mi_scores = pd.Series(mi_scores, index=X.columns).sort_values(ascending=False)
-        logger.debug(f"Top 5 MI Scores:\n{self.mi_scores.head()}")
-        return self.mi_scores
+        Args:
+            df (pd.DataFrame): The preprocessed input DataFrame.
+            save_path (str): The path to save the feature-engineered CSV file.
+            log_dir (str): The directory to store log files.
+        """
+        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-    def compute_gain_ratio(self):
-        logger.info("Calculating Gain Ratio for discrete features.")
-        X = self.df_valid.drop(columns=['area', 'ap_ratio', 'production', 'crop_name_enc', 'production_log'], errors='ignore')
-        y = self.df_valid['crop_name_enc']
-        discrete_mask = X.columns.isin(self.cat_cols)
+        # Logger setup
+        self.logger = logging.getLogger("FeatureEngineering")
+        self.logger.setLevel(logging.DEBUG)
+        if not self.logger.handlers:
+            ch = logging.StreamHandler()
+            fh = logging.FileHandler(os.path.join(log_dir, "feature_engineering.log"))
+            ch.setLevel(logging.INFO)
+            fh.setLevel(logging.DEBUG)
+            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
+                                          datefmt="%Y-%m-%d %H:%M:%S")
+            ch.setFormatter(formatter)
+            fh.setFormatter(formatter)
+            self.logger.addHandler(ch)
+            self.logger.addHandler(fh)
 
-        ratios = {}
-        for col in X.columns[discrete_mask]:
-            ig = mutual_info_score(X[col], y)
-            h = entropy(pd.Series(X[col]).value_counts(normalize=True), base=2)
-            ratios[col] = ig / h if h != 0 else 0
+        self.df = df.copy()
+        self.save_path = save_path
+        self.logger.info("FeatureEngineering pipeline initialized.")
 
-        self.gain_ratios = pd.Series(ratios).sort_values(ascending=False)
-        logger.debug(f"Top 5 Gain Ratios:\n{self.gain_ratios.head()}")
-        return self.gain_ratios
+    def create_weather_interaction_features(self):
+        """Creates interaction features from weather data."""
+        self.logger.info("Creating weather interaction features.")
+        self.df['temp_range'] = self.df['max_temp'] - self.df['min_temp']
+        self.df['humidity_range'] = self.df['max_relative_humidity'] - self.df['min_relative_humidity']
+        # Interaction between temperature and humidity
+        self.df['temp_humidity_interaction'] = self.df['avg_temp'] * self.df['avg_humidity']
 
-    def compute_shap_importance(self):
-        logger.info("Computing SHAP feature importance with RandomForestClassifier.")
-        X = self.df_valid.drop(columns=['area', 'ap_ratio', 'production', 'crop_name_enc', 'production_log'], errors='ignore')
-        y = self.df_valid['crop_name_enc']
+    def create_polynomial_features(self):
+        """Creates polynomial features for 'area' and 'production'."""
+        self.logger.info("Creating polynomial features.")
+        self.df['area_sq'] = self.df['area']**2
+        self.df['production_sq'] = self.df['production']**2
 
-        rf_fast = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
-        rf_fast.fit(X, y)
+    def create_district_aggregated_features(self):
+        """Creates aggregated features grouped by district."""
+        self.logger.info("Creating district-level aggregated features.")
+        if 'district_enc' in self.df.columns:
+            # Average production per district
+            avg_prod_by_district = self.df.groupby('district_enc')['production'].transform('mean')
+            self.df['avg_prod_by_district'] = avg_prod_by_district
 
-        explainer = shap.TreeExplainer(rf_fast)
-        X_sample = shap.sample(X, 1000)
-        shap_values = explainer.shap_values(X_sample)
-        self.shap_values = shap_values
+            # Average area per district
+            avg_area_by_district = self.df.groupby('district_enc')['area'].transform('mean')
+            self.df['avg_area_by_district'] = avg_area_by_district
+        else:
+            self.logger.warning("'district_enc' not found. Skipping district-based features.")
 
-        # Compute mean absolute SHAP value for each feature
-        feature_importance = np.abs(shap_values).mean(axis=(0, 1))
-        self.important_features = pd.Series(feature_importance, index=X.columns).sort_values(ascending=False)
-        logger.debug(f"Top 5 SHAP Features:\n{self.important_features.head()}")
-        return self.important_features
+
+    def save_featured_data(self):
+        """Saves the DataFrame with new features to a CSV file."""
+        try:
+            self.df.to_csv(self.save_path, index=False)
+            self.logger.info(f"Feature-engineered dataset saved to: {self.save_path}")
+        except Exception as e:
+            self.logger.exception(f"Error saving featured data: {str(e)}")
+            raise
 
     def run(self):
-        logger.info("Starting feature engineering pipeline.")
-        self.compute_information_gain()
-        self.compute_gain_ratio()
-        self.compute_shap_importance()
-        logger.info("Feature engineering pipeline completed successfully.")
-        return {
-            'mi_scores': self.mi_scores,
-            'gain_ratios': self.gain_ratios,
-            'shap_importance': self.important_features
-        }
+        """Executes the full feature engineering pipeline."""
+        self.logger.info("Starting feature engineering run.")
+        # self.create_weather_interaction_features()
+        # self.create_polynomial_features()
+        # self.create_district_aggregated_features()
+        
+        # Filling potential NaN values created during feature generation
+        self.df.fillna(0, inplace=True)
+        
+        self.save_featured_data()
+        self.logger.info(f"Feature engineering completed. Final DataFrame shape: {self.df.shape}")
+        return self.df
 
 
 if __name__ == "__main__":
-    logger.info("Feature engineering module executed as script. Please integrate with data pipeline.")
+    try:
+        # Example standalone run
+        processed_data_path = "./data/processed/processed_data.csv"
+        featured_data_path = "./data/featured/featured_data.csv"
+        
+        if not os.path.exists(processed_data_path):
+            raise FileNotFoundError(f"Processed data not found at {processed_data_path}. Please run the preprocessing script first.")
+
+        df_processed = pd.read_csv(processed_data_path)
+        
+        feature_engineer = FeatureEngineering(df=df_processed, save_path=featured_data_path, log_dir="./logs")
+        featured_df = feature_engineer.run()
+        
+        print("\nFeature engineering complete.")
+
+    except FileNotFoundError as e:
+        logging.error(e)
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during the feature engineering process: {e}")
