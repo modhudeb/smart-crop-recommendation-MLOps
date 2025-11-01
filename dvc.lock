@@ -1,0 +1,110 @@
+schema: '2.0'
+stages:
+  data_ingestion:
+    cmd: python src/data_ingestion.py
+    deps:
+    - path: experiments/SPAS-Dataset-BD.csv
+      hash: md5
+      md5: 555f0b6431d39d2a26a64af166f9472d
+      size: 431442
+    - path: src/data_ingestion.py
+      hash: md5
+      md5: d51da3c0badca6ffd9450be77e4493cb
+      size: 3468
+    outs:
+    - path: data/raw/SPAS-Dataset-BD.csv
+      hash: md5
+      md5: ea6df7bac09d46f78973c6606d45b25e
+      size: 452308
+  preprocess:
+    cmd: python src/preprocessing.py
+    deps:
+    - path: data/raw/SPAS-Dataset-BD.csv
+      hash: md5
+      md5: ea6df7bac09d46f78973c6606d45b25e
+      size: 452308
+    - path: src/preprocessing.py
+      hash: md5
+      md5: 3d12ccd9465c02f1f07eb9fd8c5b4fc9
+      size: 8451
+    outs:
+    - path: data/processed/processed_data.csv
+      hash: md5
+      md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
+      size: 497458
+  feature_engineering:
+    cmd: python src/feature_engineering.py
+    deps:
+    - path: data/processed/processed_data.csv
+      hash: md5
+      md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
+      size: 497458
+    - path: src/feature_engineering.py
+      hash: md5
+      md5: c468793a571cd8680f6f8b594fe9c3fe
+      size: 5217
+    outs:
+    - path: data/featured/featured_data.csv
+      hash: md5
+      md5: 78b01688a46954ae00f71b455cc6b990
+      size: 504391
+  split_data:
+    cmd: python src/splitter.py
+    deps:
+    - path: data/featured/featured_data.csv
+      hash: md5
+      md5: 78b01688a46954ae00f71b455cc6b990
+      size: 504391
+    - path: src/splitter.py
+      hash: md5
+      md5: 9a8c767798765ba3e468d0dfee2d85cb
+      size: 5503
+    outs:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 08977521ed276b158713071198bccd94
+      size: 101278
+    - path: data/splits/train.csv
+      hash: md5
+      md5: 72772ab0d8363c8edb4278cd931a0ef9
+      size: 403541
+  train_model:
+    cmd: python src/model_training.py
+    deps:
+    - path: data/splits/train.csv
+      hash: md5
+      md5: 72772ab0d8363c8edb4278cd931a0ef9
+      size: 403541
+    - path: src/model_training.py
+      hash: md5
+      md5: 18d168a9b5cb8f8a78edaf4c39c47fa8
+      size: 5234
+    outs:
+    - path: models/random_forest_model.joblib
+      hash: md5
+      md5: 31388cf812733de5d0c210c25d43d408
+      size: 26786921
+  evaluate_model:
+    cmd: python src/model_eval.py
+    deps:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 08977521ed276b158713071198bccd94
+      size: 101278
+    - path: models/random_forest_model.joblib
+      hash: md5
+      md5: 31388cf812733de5d0c210c25d43d408
+      size: 26786921
+    - path: src/model_eval.py
+      hash: md5
+      md5: 577c7c2dbf9fd70851b3e9edf965009d
+      size: 7790
+    outs:
+    - path: metrics/confusion_matrix.png
+      hash: md5
+      md5: e890b9950fbb147bcca2e068cc4df524
+      size: 91765
+    - path: metrics/evaluation_metrics.json
+      hash: md5
+      md5: e62cc9053a3290d6bc84ca5aa2cd88f8
+      size: 11625
