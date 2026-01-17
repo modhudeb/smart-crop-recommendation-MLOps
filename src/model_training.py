@@ -4,7 +4,14 @@ import logging
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 import yaml
+import mlflow
+import dagshub
 
+
+
+# MLOps CONFIG
+dagshub.init(repo_owner='modhuofficial', repo_name='smart-crop-recommendation-MLOps', mlflow=True)
+mlflow.set_tracking_uri("https://dagshub.com/modhuofficial/smart-crop-recommendation-MLOps.mlflow")
 
 
 
@@ -110,9 +117,25 @@ class ModelTraining:
         self.logger.info("Starting model training run.")
         train_df = self.load_data()
         X_train, y_train = self.prepare_data(train_df)
-        self.train_model(X_train, y_train)
-        self.save_model()
-        self.logger.info("Model training pipeline finished.")
+        with mlflow.start_run():
+            X_dataset = mlflow.data.from_pandas(df=X_train, name="training_data")
+            y_dataset = mlflow.data.from_pandas(df=y_train.to_frame(name="crop_name_enc"), name="training_data")
+            mlflow.log_input(dataset=X_dataset, context='training')
+            mlflow.log_input(dataset=y_dataset, context='training')
+
+            self.train_model(X_train, y_train)
+            self.save_model()
+
+            mlflow.log_params(params=self.params)
+            mlflow.sklearn.log_model(
+                sk_model=self.model,
+                name='models_crop_recommend',
+                registered_model_name='RandomForestHyper-crop-recommend'
+            )
+            # print("=")
+            # mlflow.log_artifact(self.train_path, 'data')
+
+            self.logger.info("Model training pipeline finished.")
 
 
 
