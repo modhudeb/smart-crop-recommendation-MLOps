@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import logging
 
+
 class DataSplit:
     """
     Splits the dataset into training and testing sets and saves them to disk.
