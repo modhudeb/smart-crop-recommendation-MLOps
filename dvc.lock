@@ -3,7 +3,7 @@ stages:
   data_ingestion:
     cmd: python src/data_ingestion.py
     deps:
-    - path: experiments/SPAS-Dataset-BD.csv
+    - path: miscellaneous/SPAS-Dataset-BD.csv
       hash: md5
       md5: 555f0b6431d39d2a26a64af166f9472d
       size: 431442

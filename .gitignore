@@ -211,3 +211,4 @@ __marimo__/
 # Custom dirs
 logs/
 experiments/
+*.joblib

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Crop Predictor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🌱 Smart Crop Predictor</h1>
+        <p>AI-Powered Agricultural Assistant</p>
+    </header>
+
+    <main>
+        <form id="cropForm">
+            <div class="form-section">
+                <h3>📍 Location & Season</h3>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label for="district">District</label>
+                        <select id="district" required>
+                            <option value="" disabled selected>Select District</option>
+                            <option value="Bagerhat">Bagerhat</option><option value="Bandarban">Bandarban</option><option value="Barguna">Barguna</option><option value="Barishal">Barishal</option><option value="Bhola">Bhola</option><option value="Bogura">Bogura</option><option value="Brahmanbaria">Brahmanbaria</option><option value="Chandpur">Chandpur</option><option value="Chapai Nawabganj">Chapai Nawabganj</option><option value="Chattogram">Chattogram</option><option value="Chuadanga">Chuadanga</option><option value="CoxsBazar">CoxsBazar</option><option value="Cumilla">Cumilla</option><option value="Dhaka">Dhaka</option><option value="Dinajpur">Dinajpur</option><option value="Faridpur">Faridpur</option><option value="Feni">Feni</option><option value="Gaibandha">Gaibandha</option><option value="Gazipur">Gazipur</option><option value="Gopalganj">Gopalganj</option><option value="Habiganj">Habiganj</option><option value="Jamalpur">Jamalpur</option><option value="Jashore">Jashore</option><option value="Jhallokati">Jhallokati</option><option value="Jhenaidah">Jhenaidah</option><option value="Joypurhat">Joypurhat</option><option value="Khagrachari">Khagrachari</option><option value="Khulna">Khulna</option><option value="Kishoreganj">Kishoreganj</option><option value="Kurigram">Kurigram</option><option value="Kushtia">Kushtia</option><option value="Lakshmipur">Lakshmipur</option><option value="Lalmonirhat">Lalmonirhat</option><option value="Madaripur">Madaripur</option><option value="Magura">Magura</option><option value="Manikganj">Manikganj</option><option value="Meherpur">Meherpur</option><option value="Moulvibazar">Moulvibazar</option><option value="Munshiganj">Munshiganj</option><option value="Mymensingh">Mymensingh</option><option value="Naogaon">Naogaon</option><option value="Narail">Narail</option><option value="Narayanganj">Narayanganj</option><option value="Narsingdi">Narsingdi</option><option value="Natore">Natore</option><option value="Netrokona">Netrokona</option><option value="Nilphamari">Nilphamari</option><option value="Noakhali">Noakhali</option><option value="Pabna">Pabna</option><option value="Panchagar">Panchagar</option><option value="Patuakhali">Patuakhali</option><option value="Pirojpur">Pirojpur</option><option value="Rajbari">Rajbari</option><option value="Rajshahi">Rajshahi</option><option value="Rangamati">Rangamati</option><option value="Rangpur">Rangpur</option><option value="Satkhira">Satkhira</option><option value="Shariatpur">Shariatpur</option><option value="Sherpur">Sherpur</option><option value="Sirajganj">Sirajganj</option><option value="Sunamganj">Sunamganj</option><option value="Sylhet">Sylhet</option><option value="Tangail">Tangail</option><option value="Thakurgaon">Thakurgaon</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="season">Season</label>
+                        <select id="season" required>
+                            <option value="kharif 1">Kharif 1</option>
+                            <option value="kharif 2">Kharif 2</option>
+                            <option value="rabi">Rabi</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="area">Area (Acres)</label>
+                        <input type="number" id="area" step="0.01" required placeholder="e.g. 1.5">
+                    </div>
+                    <div class="input-group">
+                        <label for="transplant_month">Transplant Month</label>
+                        <select id="transplant_month" required>
+                           <option value="january">January</option><option value="february">February</option><option value="march">March</option><option value="april">April</option><option value="may">May</option><option value="june">June</option><option value="july">July</option><option value="august">August</option><option value="september">September</option><option value="october">October</option><option value="november">November</option><option value="december">December</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>🗓️ Crop Cycle</h3>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label for="growth_start">Growth Start</label>
+                        <select id="growth_start" class="month-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="growth_end">Growth End</label>
+                        <select id="growth_end" class="month-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="harvest_start">Harvest Start</label>
+                        <select id="harvest_start" class="month-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="harvest_end">Harvest End</label>
+                        <select id="harvest_end" class="month-select"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>⛅ Climate Conditions</h3>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label for="min_temp">Min Temp (°C)</label>
+                        <input type="number" id="min_temp" step="0.1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="max_temp">Max Temp (°C)</label>
+                        <input type="number" id="max_temp" step="0.1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="min_rh">Min Humidity (%)</label>
+                        <input type="number" id="min_rh" step="0.1" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="max_rh">Max Humidity (%)</label>
+                        <input type="number" id="max_rh" step="0.1" required>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">Predict Suitable Crops</button>
+        </form>
+
+        <div id="resultArea" class="hidden">
+            <h2>Recommended Crops</h2>
+            <div id="predictionsList"></div>
+        </div>
+    </main>
+</div>
+
+<script src="main.js"></script>
+</body>
+</html>

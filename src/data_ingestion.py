@@ -80,7 +80,7 @@ class DataIngestion:
 
 if __name__ == "__main__":
     # Example standalone run
-    data_path = "./experiments/SPAS-Dataset-BD.csv"
+    data_path = "./miscellaneous/SPAS-Dataset-BD.csv"
     save_path = "./data/raw/SPAS-Dataset-BD.csv"
 
     ingestion = DataIngestion(data_path=data_path, log_dir="./logs")

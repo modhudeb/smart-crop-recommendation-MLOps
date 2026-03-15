@@ -3,7 +3,7 @@ stages:
     cmd: python src/data_ingestion.py
     deps:
       - src/data_ingestion.py
-      - experiments/SPAS-Dataset-BD.csv
+      - miscellaneous/SPAS-Dataset-BD.csv
     outs:
       - data/raw/SPAS-Dataset-BD.csv
 
