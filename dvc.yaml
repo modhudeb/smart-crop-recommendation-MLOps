@@ -1,56 +1,56 @@
 stages:
   data_ingestion:
-    cmd: python src/data_ingestion.py
+    cmd: python src/crop_recommendation/pipeline/data_ingestion.py
     deps:
-      - src/data_ingestion.py
-      - miscellaneous/SPAS-Dataset-BD.csv
+      - src/crop_recommendation/pipeline/data_ingestion.py
+      - data/external/SPAS-Dataset-BD.csv
     outs:
       - data/raw/SPAS-Dataset-BD.csv
 
   preprocess:
-    cmd: python src/preprocessing.py
+    cmd: python src/crop_recommendation/pipeline/preprocessing.py
     deps:
-      - src/preprocessing.py
+      - src/crop_recommendation/pipeline/preprocessing.py
       - data/raw/SPAS-Dataset-BD.csv
     outs:
       - data/processed/processed_data.csv
 
   feature_engineering:
-    cmd: python src/feature_engineering.py
+    cmd: python src/crop_recommendation/pipeline/feature_engineering.py
     deps:
-      - src/feature_engineering.py
+      - src/crop_recommendation/pipeline/feature_engineering.py
       - data/processed/processed_data.csv
     outs:
-      - data/featured/featured_data.csv
+      - data/features/featured_data.csv
 
   split_data:
-    cmd: python src/splitter.py
+    cmd: python src/crop_recommendation/pipeline/splitter.py
     deps:
-      - src/splitter.py
-      - data/featured/featured_data.csv
+      - src/crop_recommendation/pipeline/splitter.py
+      - data/features/featured_data.csv
     outs:
       - data/splits/train.csv
       - data/splits/test.csv
 
   train_model:
-    cmd: python src/model_training.py
+    cmd: python src/crop_recommendation/pipeline/model_training.py
     deps:
-      - src/model_training.py
+      - src/crop_recommendation/pipeline/model_training.py
       - data/splits/train.csv
     params:
       - model_training.random_forest
     outs:
-      - models/random_forest_model.joblib
+      - artifacts/models/random_forest_model.joblib
 
   evaluate_model:
-    cmd: python src/model_eval.py
+    cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
-      - src/model_eval.py
+      - src/crop_recommendation/pipeline/model_eval.py
       - data/splits/test.csv
-      - models/random_forest_model.joblib
+      - artifacts/models/random_forest_model.joblib
     metrics:
-      - metrics/evaluation_metrics.json:
+      - reports/metrics/evaluation_metrics.json:
           cache: false
     outs:
-      - metrics/confusion_matrix.png:
+      - reports/metrics/confusion_matrix.png:
           cache: false

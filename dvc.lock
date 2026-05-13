@@ -1,64 +1,64 @@
 schema: '2.0'
 stages:
   data_ingestion:
-    cmd: python src/data_ingestion.py
+    cmd: python src/crop_recommendation/pipeline/data_ingestion.py
     deps:
-    - path: miscellaneous/SPAS-Dataset-BD.csv
+    - path: data/external/SPAS-Dataset-BD.csv
       hash: md5
       md5: 555f0b6431d39d2a26a64af166f9472d
       size: 431442
-    - path: src/data_ingestion.py
+    - path: src/crop_recommendation/pipeline/data_ingestion.py
       hash: md5
-      md5: d51da3c0badca6ffd9450be77e4493cb
-      size: 3468
+      md5: fc36e5a5db72f37de182b680834bea20
+      size: 3478
     outs:
     - path: data/raw/SPAS-Dataset-BD.csv
       hash: md5
       md5: ea6df7bac09d46f78973c6606d45b25e
       size: 452308
   preprocess:
-    cmd: python src/preprocessing.py
+    cmd: python src/crop_recommendation/pipeline/preprocessing.py
     deps:
     - path: data/raw/SPAS-Dataset-BD.csv
       hash: md5
       md5: ea6df7bac09d46f78973c6606d45b25e
       size: 452308
-    - path: src/preprocessing.py
+    - path: src/crop_recommendation/pipeline/preprocessing.py
       hash: md5
-      md5: 3d12ccd9465c02f1f07eb9fd8c5b4fc9
-      size: 8451
+      md5: f47e7cc13925d5af14e114da7afb11c1
+      size: 8470
     outs:
     - path: data/processed/processed_data.csv
       hash: md5
       md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
       size: 497458
   feature_engineering:
-    cmd: python src/feature_engineering.py
+    cmd: python src/crop_recommendation/pipeline/feature_engineering.py
     deps:
     - path: data/processed/processed_data.csv
       hash: md5
       md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
       size: 497458
-    - path: src/feature_engineering.py
+    - path: src/crop_recommendation/pipeline/feature_engineering.py
       hash: md5
-      md5: c468793a571cd8680f6f8b594fe9c3fe
-      size: 5217
+      md5: 780049862b01e0b08228f881a772f0f7
+      size: 5239
     outs:
-    - path: data/featured/featured_data.csv
+    - path: data/features/featured_data.csv
       hash: md5
       md5: 78b01688a46954ae00f71b455cc6b990
       size: 504391
   split_data:
-    cmd: python src/splitter.py
+    cmd: python src/crop_recommendation/pipeline/splitter.py
     deps:
-    - path: data/featured/featured_data.csv
+    - path: data/features/featured_data.csv
       hash: md5
       md5: 78b01688a46954ae00f71b455cc6b990
       size: 504391
-    - path: src/splitter.py
+    - path: src/crop_recommendation/pipeline/splitter.py
       hash: md5
-      md5: 9a8c767798765ba3e468d0dfee2d85cb
-      size: 5503
+      md5: d4570fcda0409ecdccdc5d7d271f8ef0
+      size: 5517
     outs:
     - path: data/splits/test.csv
       hash: md5
@@ -69,16 +69,16 @@ stages:
       md5: 72772ab0d8363c8edb4278cd931a0ef9
       size: 403541
   train_model:
-    cmd: python src/model_training.py
+    cmd: python src/crop_recommendation/pipeline/model_training.py
     deps:
     - path: data/splits/train.csv
       hash: md5
       md5: 72772ab0d8363c8edb4278cd931a0ef9
       size: 403541
-    - path: src/model_training.py
+    - path: src/crop_recommendation/pipeline/model_training.py
       hash: md5
-      md5: e0efb245cd3301e2697b3b274bbef390
-      size: 5448
+      md5: 340a630a7a8873d363345e5d29edf8fc
+      size: 6468
     params:
       params.yaml:
         model_training.random_forest:
@@ -89,31 +89,31 @@ stages:
           min_samples_leaf: 5
           n_jobs: -1
     outs:
-    - path: models/random_forest_model.joblib
+    - path: artifacts/models/random_forest_model.joblib
       hash: md5
       md5: ad033508d6fa4605451d02f757e89a15
       size: 26753641
   evaluate_model:
-    cmd: python src/model_eval.py
+    cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
     - path: data/splits/test.csv
       hash: md5
       md5: 08977521ed276b158713071198bccd94
       size: 101278
-    - path: models/random_forest_model.joblib
+    - path: artifacts/models/random_forest_model.joblib
       hash: md5
       md5: ad033508d6fa4605451d02f757e89a15
       size: 26753641
-    - path: src/model_eval.py
+    - path: src/crop_recommendation/pipeline/model_eval.py
       hash: md5
-      md5: 577c7c2dbf9fd70851b3e9edf965009d
-      size: 7790
+      md5: e1d8bfbe210c30326a1920c0af63d812
+      size: 7884
     outs:
-    - path: metrics/confusion_matrix.png
+    - path: reports/metrics/confusion_matrix.png
       hash: md5
       md5: 67ad3c069f0b11ad04c9948681ede2e2
       size: 91782
-    - path: metrics/evaluation_metrics.json
+    - path: reports/metrics/evaluation_metrics.json
       hash: md5
       md5: 1b4932dd14454f71da07e85c6632c576
       size: 11613
