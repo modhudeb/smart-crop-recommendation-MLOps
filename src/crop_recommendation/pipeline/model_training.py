@@ -9,6 +9,7 @@ import pandas as pd
 
 try:
     import mlflow
+    from mlflow.tracking import MlflowClient
     HAS_MLFLOW = True
 except ImportError:
     HAS_MLFLOW = False
@@ -41,6 +42,26 @@ from crop_recommendation.pipeline.model_trainer import (
 def load_params(param_path="params.yaml"):
     with open(param_path, "r") as f:
         return yaml.safe_load(f)
+
+
+def configure_mlflow(project_root, experiment_name="crop-recommendation"):
+    tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
+    mlflow_dir = os.path.join(project_root, "mlruns")
+    artifact_location = f"file:///{mlflow_dir.replace(os.sep, '/')}"
+
+    if not tracking_uri:
+        db_path = os.path.join(project_root, "mlflow.db")
+        tracking_uri = f"sqlite:///{db_path.replace(os.sep, '/')}"
+
+    mlflow.set_tracking_uri(tracking_uri)
+    client = MlflowClient()
+    if client.get_experiment_by_name(experiment_name) is None:
+        client.create_experiment(
+            experiment_name,
+            artifact_location=artifact_location,
+        )
+    mlflow.set_experiment(experiment_name)
+    return tracking_uri
 
 
 class ModelTraining:
@@ -176,12 +197,7 @@ class ModelTraining:
     # ── MLflow ─────────────────────────────────────────────────────────
 
     def _log_to_mlflow(self, project_root, results):
-        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
-        if not tracking_uri:
-            mlflow_dir = os.path.join(project_root, "mlruns")
-            tracking_uri = f"file:///{mlflow_dir.replace(os.sep, '/')}"
-        mlflow.set_tracking_uri(tracking_uri)
-        mlflow.set_experiment("crop-recommendation")
+        tracking_uri = configure_mlflow(project_root)
 
         params = load_params(os.path.join(project_root, "params.yaml"))
 
@@ -211,7 +227,7 @@ class ModelTraining:
                 try:
                     mlflow.sklearn.log_model(
                         sk_model=model,
-                        artifact_path=f"models/{name}",
+                        name=name,
                         registered_model_name=name,
                     )
                     self.logger.info(f"Registered model: {name}")

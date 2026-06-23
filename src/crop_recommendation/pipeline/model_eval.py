@@ -7,6 +7,7 @@ import joblib
 
 try:
     import mlflow
+    from mlflow.tracking import MlflowClient
     HAS_MLFLOW = True
 except ImportError:
     HAS_MLFLOW = False
@@ -21,6 +22,26 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import ttest_rel, wilcoxon
+
+
+def configure_mlflow(project_root, experiment_name="crop-recommendation"):
+    tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
+    mlflow_dir = os.path.join(project_root, "mlruns")
+    artifact_location = f"file:///{mlflow_dir.replace(os.sep, '/')}"
+
+    if not tracking_uri:
+        db_path = os.path.join(project_root, "mlflow.db")
+        tracking_uri = f"sqlite:///{db_path.replace(os.sep, '/')}"
+
+    mlflow.set_tracking_uri(tracking_uri)
+    client = MlflowClient()
+    if client.get_experiment_by_name(experiment_name) is None:
+        client.create_experiment(
+            experiment_name,
+            artifact_location=artifact_location,
+        )
+    mlflow.set_experiment(experiment_name)
+    return tracking_uri
 
 
 class ModelEvaluation:
@@ -172,13 +193,7 @@ class ModelEvaluation:
         import mlflow
 
         _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
-        if not tracking_uri:
-            mlflow_dir = os.path.join(_root, "mlruns")
-            tracking_uri = f"file:///{mlflow_dir.replace(os.sep, '/')}"
-
-        mlflow.set_tracking_uri(tracking_uri)
-        mlflow.set_experiment("crop-recommendation")
+        tracking_uri = configure_mlflow(_root)
 
         with mlflow.start_run(run_name="evaluation-pipeline"):
             mlflow.log_param("best_model", best_model_name)

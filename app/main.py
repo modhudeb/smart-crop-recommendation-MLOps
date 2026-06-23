@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import re
 import joblib
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +15,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("crop_predictor")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ARTIFACT_DIR = os.path.join(BASE_DIR, "artifacts")
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
+ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", os.path.join(PROJECT_ROOT, "artifacts"))
+MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "VotingClassifier_Ensemble")
 FEATURE_COLUMNS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "feature_columns.joblib")
-MODEL_PATH = os.path.join(ARTIFACT_DIR, "models", "ResidualCatBoost_RF.joblib")
+MODEL_PATH = os.path.join(ARTIFACT_DIR, "models", f"{MODEL_NAME}.joblib")
 ENCODERS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "label_encoders.joblib")
 SCALER_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "standard_scaler.joblib")
 CLIMATE_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "climate_constants.joblib")
@@ -93,14 +99,17 @@ def _clean_month_string(s):
     return s
 
 
+def _clean_category(s):
+    return str(s).strip().lower()
+
+
 def _encode_span(span):
     vec = [0] * 12
-    parts = re.split(r'\s*to\s*', span.strip().lower())
+    span = _clean_month_string(span)
+    parts = re.split(r'\s+to\s+', span)
     parts = [p.strip() for p in parts if p.strip()]
     if len(parts) < 2:
         return vec
-    parts[0] = MONTH_ABBR_MAP.get(parts[0], parts[0])
-    parts[1] = MONTH_ABBR_MAP.get(parts[1], parts[1])
     if parts[0] in MONTH_TO_IDX and parts[1] in MONTH_TO_IDX:
         start, end = MONTH_TO_IDX[parts[0]], MONTH_TO_IDX[parts[1]]
         if start <= end:
@@ -117,8 +126,8 @@ def _encode_span(span):
 def data_input_pipeline(user_input, scaler, le_district, le_season, climate_constants, feature_columns):
     features = {}
 
-    district = user_input["district"].strip()
-    season = user_input["season"].strip()
+    district = _clean_category(user_input["district"])
+    season = _clean_category(user_input["season"])
 
     if district not in list(le_district.classes_):
         raise ValueError(f"Unknown district: {district}")
@@ -160,10 +169,10 @@ def data_input_pipeline(user_input, scaler, le_district, le_season, climate_cons
     processed_df = pd.DataFrame([features])
     processed_df = processed_df.reindex(columns=feature_columns, fill_value=0)
 
-    cols_to_scale = ["area_log"]
-    existing_scale_cols = [c for c in cols_to_scale if c in processed_df.columns]
-    if existing_scale_cols:
-        processed_df[existing_scale_cols] = scaler.transform(processed_df[existing_scale_cols])
+    if "area_log" in processed_df.columns:
+        processed_df["area_log"] = (
+            processed_df["area_log"] - float(scaler.mean_[0])
+        ) / float(scaler.scale_[0])
 
     return processed_df
 
@@ -194,6 +203,16 @@ async def predict(input_data: CropInput):
     except Exception as e:
         logger.exception("Prediction failed.")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "model": MODEL_NAME,
+        "model_path": MODEL_PATH,
+        "feature_count": len(artifacts.get("feature_columns", [])),
+    }
 
 
 app.mount("/", StaticFiles(directory=BASE_DIR, html=True), name="static")
