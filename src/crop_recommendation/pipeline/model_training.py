@@ -160,11 +160,14 @@ class ModelTraining:
     # ── Artifacts ──────────────────────────────────────────────────────
 
     def save_artifacts(self, encoder, feature_engineer, feature_cols):
-        encoders = {
-            "le_crop": encoder.le_crop,
-            "le_season": encoder.le_season,
-            "le_district": encoder.le_district,
-        }
+        if isinstance(encoder, dict):
+            encoders = encoder
+        else:
+            encoders = {
+                "le_crop": encoder.le_crop,
+                "le_season": encoder.le_season,
+                "le_district": encoder.le_district,
+            }
         joblib.dump(encoders, os.path.join(self.feature_save_dir, "label_encoders.joblib"))
         joblib.dump(feature_engineer.scaler, os.path.join(self.feature_save_dir, "standard_scaler.joblib"))
         joblib.dump(feature_engineer.climate_constants, os.path.join(self.feature_save_dir, "climate_constants.joblib"))
@@ -215,13 +218,23 @@ class ModelTraining:
                         if not np.isnan(avg):
                             mlflow.log_metric(f"{name}_cv_avg_{key}", round(avg, 4))
 
-            for name in self.models:
-                path = os.path.join(self.model_save_dir, f"{name}.joblib")
-                if os.path.exists(path):
-                    try:
-                        mlflow.log_artifact(path, artifact_path="models")
-                    except Exception as e:
-                        self.logger.warning(f"MLflow artifact fail {name}: {e}")
+            for name, model in self.models.items():
+                try:
+                    mlflow.sklearn.log_model(
+                        sk_model=model,
+                        artifact_path=f"models/{name}",
+                        registered_model_name=name,
+                    )
+                    self.logger.info(f"Registered model: {name}")
+                except Exception as e:
+                    self.logger.warning(f"MLflow register fail {name}: {e}")
+                    # Fallback: log as plain artifact
+                    path = os.path.join(self.model_save_dir, f"{name}.joblib")
+                    if os.path.exists(path):
+                        try:
+                            mlflow.log_artifact(path, artifact_path="models")
+                        except Exception as e2:
+                            self.logger.warning(f"MLflow artifact fail {name}: {e2}")
 
             csv_path = os.path.join(project_root, "reports", "metrics", "training_results.csv")
             if os.path.exists(csv_path):
@@ -244,8 +257,8 @@ class ModelTraining:
         results, fold_results = self.train_all(train_df, X_test, y_test, feature_cols)
 
         pp_dir = os.path.join(project_root, "artifacts", "preprocessors")
-        encoder = CategoricalEncoder.load(os.path.join(pp_dir, "label_encoders.joblib")) \
-            if os.path.exists(os.path.join(pp_dir, "label_encoders.joblib")) else None
+        enc_path = os.path.join(pp_dir, "label_encoders.joblib")
+        encoder = joblib.load(enc_path) if os.path.exists(enc_path) else None
         fe = FeatureEngineering.__new__(FeatureEngineering)
         fe.scaler = joblib.load(os.path.join(pp_dir, "standard_scaler.joblib")) \
             if os.path.exists(os.path.join(pp_dir, "standard_scaler.joblib")) else None

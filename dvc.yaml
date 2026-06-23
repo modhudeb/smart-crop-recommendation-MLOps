@@ -49,15 +49,7 @@ stages:
       - artifacts/preprocessors/standard_scaler.joblib
       - artifacts/preprocessors/climate_constants.joblib
     outs:
-      - artifacts/models/ResidualCatBoost_RF.joblib
-      - artifacts/models/ResidualCatBoost_SVC.joblib
-      - artifacts/models/RandomForest_Tuned.joblib
-      - artifacts/models/LightGBM.joblib
-      - artifacts/models/XGBoost.joblib
-      - artifacts/models/MLP.joblib
-      - artifacts/models/CatBoost.joblib
-      - artifacts/models/LogisticRegression.joblib
-      - artifacts/models/VotingClassifier_Ensemble.joblib
+      - artifacts/models/
     metrics:
       - reports/metrics/training_results.csv:
           cache: false

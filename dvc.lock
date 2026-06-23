@@ -105,49 +105,18 @@ stages:
       size: 285048
     - path: src/crop_recommendation/pipeline/model_training.py
       hash: md5
-      md5: fcf6b494e0c1227bc843d54202377aea
-      size: 13502
+      md5: b1fa18b08e90570d25996402d811922f
+      size: 14084
     outs:
-    - path: artifacts/models/CatBoost.joblib
+    - path: artifacts/models/
       hash: md5
-      md5: 1084bced5a191aac8ecbb28e80adb586
-      size: 7509539
-    - path: artifacts/models/LightGBM.joblib
-      hash: md5
-      md5: b7695e7d44807495dc4f0955e2aef935
-      size: 82528324
-    - path: artifacts/models/LogisticRegression.joblib
-      hash: md5
-      md5: a3c85264691cd653df1873ecd6592b2d
-      size: 18695
-    - path: artifacts/models/MLP.joblib
-      hash: md5
-      md5: 0c8a29e13333d10de6cf167c65d1ed9e
-      size: 102752
-    - path: artifacts/models/RandomForest_Tuned.joblib
-      hash: md5
-      md5: 2c17e159bf007368beadec5393e6d42d
-      size: 212598457
-    - path: artifacts/models/ResidualCatBoost_RF.joblib
-      hash: md5
-      md5: 72f7fbe5994b08290347cea53958a223
-      size: 96744843
-    - path: artifacts/models/ResidualCatBoost_SVC.joblib
-      hash: md5
-      md5: 7723e564065505c3b74f028ef9858c1e
-      size: 10485202
-    - path: artifacts/models/VotingClassifier_Ensemble.joblib
-      hash: md5
-      md5: 4454926229719ee56daf9461a70f4f78
-      size: 220206248
-    - path: artifacts/models/XGBoost.joblib
-      hash: md5
-      md5: 1d3e2619a4e500ef1976dd395681d4e9
-      size: 31713174
+      md5: dc959c0eff69a023316ea82e3161c7f8.dir
+      size: 849831294
+      nfiles: 10
     - path: reports/metrics/training_results.csv
       hash: md5
-      md5: 7b7c04d3ee0fdc48da99167be7249bb0
-      size: 1536
+      md5: b9c99bc91ad8a1241011a1969b4d3bd3
+      size: 1537
   evaluate_model:
     cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
@@ -162,9 +131,9 @@ stages:
     outs:
     - path: reports/metrics/confusion_matrix.png
       hash: md5
-      md5: 57a40798480745fa69d79163006d2b38
-      size: 151109
+      md5: 4d32dafe57df7f50623e39a1019f883e
+      size: 153055
     - path: reports/metrics/evaluation_metrics.json
       hash: md5
-      md5: ec06d9951b50db8928e050271271f290
-      size: 2674
+      md5: 796e6f27c050c4e5e6b6e7f5961c2215
+      size: 2675

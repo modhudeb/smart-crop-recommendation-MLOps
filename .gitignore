@@ -154,6 +154,7 @@ desktop.ini
 .ropeproject
 .cursorignore
 .cursorindexingignore
+.claude/
 
 # ---------------------------------------------------------------------------
 # Miscellaneous framework outputs
@@ -175,4 +176,4 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .abstra/
-catboost_info/
+catboost_info
