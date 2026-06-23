@@ -71,7 +71,6 @@ class ModelTraining:
 
         self.models = {}
         self.results = {}
-        self.fold_results = []
         self.logger.info("ModelTraining pipeline initialized.")
 
     # ── Data ────────────────────────────────────────────────────────────
@@ -89,7 +88,7 @@ class ModelTraining:
 
     # ── Training ────────────────────────────────────────────────────────
 
-    def train_all(self, train_df, X_test, y_test, feature_cols, random_state=42, n_splits=5):
+    def train_all(self, train_df, X_test, y_test, feature_cols, random_state=42):
         target_col = "crop_name_enc"
 
         X_orig, y_orig, X_synth, y_synth, feature_cols = run_tvae_augmentation(
@@ -121,12 +120,11 @@ class ModelTraining:
 
         for name, builder in standard_builders.items():
             model = builder()
-            final_model, cv_df, metrics = train_single_model(
+            final_model, metrics = train_single_model(
                 name, model, X_orig, y_orig, X_synth, y_synth,
-                X_full, y_full, X_test, y_test, n_splits, random_state, self.logger,
+                X_full, y_full, X_test, y_test, random_state, self.logger,
             )
             self.models[name] = final_model
-            self.fold_results.append(cv_df)
             self.results[name] = metrics
 
         # Calibrated CatBoost variants
@@ -135,12 +133,11 @@ class ModelTraining:
             "ResidualCatBoost_RF": lambda: build_calibrated_catboost_rf(random_state, best_rf_params),
         }.items():
             model = builder()
-            final_model, cv_df, metrics = train_single_model(
+            final_model, metrics = train_single_model(
                 name, model, X_orig, y_orig, X_synth, y_synth,
-                X_full, y_full, X_test, y_test, n_splits, random_state, self.logger,
+                X_full, y_full, X_test, y_test, random_state, self.logger,
             )
             self.models[name] = final_model
-            self.fold_results.append(cv_df)
             self.results[name] = metrics
 
         # Voting ensemble
@@ -155,7 +152,7 @@ class ModelTraining:
         m["model"] = "VotingClassifier_Ensemble"
         self.results["VotingClassifier_Ensemble"] = m
 
-        return self.results, self.fold_results
+        return self.results
 
     # ── Artifacts ──────────────────────────────────────────────────────
 
@@ -178,7 +175,7 @@ class ModelTraining:
 
     # ── MLflow ─────────────────────────────────────────────────────────
 
-    def _log_to_mlflow(self, project_root, results, fold_results):
+    def _log_to_mlflow(self, project_root, results):
         tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
         if not tracking_uri:
             mlflow_dir = os.path.join(project_root, "mlruns")
@@ -209,14 +206,6 @@ class ModelTraining:
                     val = metrics.get(key)
                     if val is not None and not (isinstance(val, float) and np.isnan(val)):
                         mlflow.log_metric(f"{name}_{key}", round(val, 4))
-
-            if fold_results:
-                all_folds = pd.concat(fold_results, ignore_index=True)
-                for name, grp in all_folds.groupby("model"):
-                    for key in ["accuracy", "balanced_accuracy", "f1", "kappa", "roc_auc"]:
-                        avg = grp[key].mean()
-                        if not np.isnan(avg):
-                            mlflow.log_metric(f"{name}_cv_avg_{key}", round(avg, 4))
 
             for name, model in self.models.items():
                 try:
@@ -254,7 +243,7 @@ class ModelTraining:
         X_test = test_df.drop(columns=["crop_name_enc"]).values
         y_test = test_df["crop_name_enc"].astype(int).values
 
-        results, fold_results = self.train_all(train_df, X_test, y_test, feature_cols)
+        results = self.train_all(train_df, X_test, y_test, feature_cols)
 
         pp_dir = os.path.join(project_root, "artifacts", "preprocessors")
         enc_path = os.path.join(pp_dir, "label_encoders.joblib")
@@ -272,9 +261,9 @@ class ModelTraining:
         self.logger.info("Model training pipeline completed.")
 
         if HAS_MLFLOW:
-            self._log_to_mlflow(project_root, results, fold_results)
+            self._log_to_mlflow(project_root, results)
 
-        return results, fold_results
+        return results
 
 
 if __name__ == "__main__":
@@ -285,7 +274,7 @@ if __name__ == "__main__":
         feature_save_dir=os.path.join(project_root, "artifacts", "preprocessors"),
         log_dir=os.path.join(project_root, "reports", "logs"),
     )
-    results, fold_results = trainer.run()
+    results = trainer.run()
     print("\nModel training complete.")
     for name, metrics in results.items():
         print(f"  {name}: Accuracy={metrics['accuracy']:.4f}, F1={metrics['f1']:.4f}")

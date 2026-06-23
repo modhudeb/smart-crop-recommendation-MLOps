@@ -1,17 +1,16 @@
-"""Training utilities: metrics, CV loop, TVAE augmentation, and per-model training."""
+"""Training utilities: metrics, TVAE augmentation, and per-model training."""
 import os
 import numpy as np
 import pandas as pd
 import logging
 import joblib
 from sklearn.base import clone
-from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     balanced_accuracy_score, cohen_kappa_score, roc_auc_score,
 )
-from tqdm.auto import tqdm
 
 try:
     from sdv.single_table import TVAESynthesizer
@@ -38,58 +37,6 @@ def calculate_metrics(y_true, y_pred, y_prob=None):
     else:
         metrics['roc_auc'] = np.nan
     return metrics
-
-
-def stratified_cv_train(model, model_name, X, y, X_synth=None, y_synth=None,
-                        n_splits=5, random_state=42):
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    fold_metrics = []
-
-    for fold_id, (train_idx, val_idx) in enumerate(
-        tqdm(skf.split(X, y), total=n_splits, desc=f"[{model_name}] CV", unit="fold"),
-        start=1
-    ):
-        X_tr, X_val = X[train_idx], X[val_idx]
-        y_tr, y_val = y[train_idx], y[val_idx]
-
-        if X_synth is not None and y_synth is not None:
-            X_tr = np.concatenate([X_tr, X_synth])
-            y_tr = np.concatenate([y_tr, y_synth])
-
-        fold_model = clone(model)
-        if hasattr(fold_model, "verbose"):
-            fold_model.verbose = 0
-        if hasattr(fold_model, "random_state"):
-            fold_model.random_state = random_state
-
-        fold_model.fit(X_tr, y_tr)
-        y_pred = fold_model.predict(X_val)
-        y_prob = fold_model.predict_proba(X_val) if hasattr(fold_model, "predict_proba") else None
-
-        metrics = {
-            'model': model_name,
-            'fold': fold_id,
-            'accuracy': accuracy_score(y_val, y_pred),
-            'balanced_accuracy': balanced_accuracy_score(y_val, y_pred),
-            'precision': precision_score(y_val, y_pred, average='macro', zero_division=0),
-            'recall': recall_score(y_val, y_pred, average='macro', zero_division=0),
-            'f1': f1_score(y_val, y_pred, average='macro', zero_division=0),
-            'kappa': cohen_kappa_score(y_val, y_pred),
-        }
-        if y_prob is not None:
-            try:
-                metrics['roc_auc'] = roc_auc_score(y_val, y_prob, multi_class='ovr', average='weighted')
-            except ValueError:
-                metrics['roc_auc'] = np.nan
-        else:
-            metrics['roc_auc'] = np.nan
-
-        fold_metrics.append(metrics)
-        print(f"[{model_name}] Fold {fold_id}/{n_splits} | "
-              f"Acc: {metrics['accuracy']:.4f} | F1: {metrics['f1']:.4f} | "
-              f"AUC: {metrics['roc_auc']:.4f}")
-
-    return pd.DataFrame(fold_metrics)
 
 
 def run_tvae_augmentation(df_train, target_col, model_save_dir, logger):
@@ -143,15 +90,9 @@ def tune_random_forest(X_full, y_full, random_state=42):
 
 def train_single_model(name, model, X_orig, y_orig, X_synth, y_synth,
                        X_full, y_full, X_test, y_test,
-                       n_splits, random_state, logger):
-    """Train one model: CV + final fit + test evaluation. Returns (model, cv_df, metrics)."""
+                       random_state, logger):
+    """Train one model: single fit on full data + test evaluation. Returns (model, metrics)."""
     logger.info(f"Training {name}...")
-
-    cv_df = stratified_cv_train(
-        model, name, X_orig, y_orig,
-        X_synth=X_synth, y_synth=y_synth,
-        n_splits=n_splits, random_state=random_state,
-    )
 
     final_model = clone(model)
     final_model.fit(X_full, y_full)
@@ -162,4 +103,4 @@ def train_single_model(name, model, X_orig, y_orig, X_synth, y_synth,
     metrics['model'] = name
 
     logger.info(f"{name} - Accuracy: {metrics['accuracy']:.4f}, F1: {metrics['f1']:.4f}")
-    return final_model, cv_df, metrics
+    return final_model, metrics

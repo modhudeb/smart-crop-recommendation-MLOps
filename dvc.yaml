@@ -48,8 +48,6 @@ stages:
       - artifacts/preprocessors/label_encoders.joblib
       - artifacts/preprocessors/standard_scaler.joblib
       - artifacts/preprocessors/climate_constants.joblib
-    outs:
-      - artifacts/models/
     metrics:
       - reports/metrics/training_results.csv:
           cache: false

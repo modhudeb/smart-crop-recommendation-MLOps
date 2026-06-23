@@ -105,18 +105,13 @@ stages:
       size: 285048
     - path: src/crop_recommendation/pipeline/model_training.py
       hash: md5
-      md5: b1fa18b08e90570d25996402d811922f
-      size: 14084
+      md5: 6e0b0b9e91386e3c09ddeaf53872d1ee
+      size: 13399
     outs:
-    - path: artifacts/models/
-      hash: md5
-      md5: dc959c0eff69a023316ea82e3161c7f8.dir
-      size: 849831294
-      nfiles: 10
     - path: reports/metrics/training_results.csv
       hash: md5
-      md5: b9c99bc91ad8a1241011a1969b4d3bd3
-      size: 1537
+      md5: 0eb6ef5b61b81b8171ee4e07889e9ada
+      size: 1544
   evaluate_model:
     cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
