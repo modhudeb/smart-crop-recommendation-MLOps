@@ -15,11 +15,19 @@ stages:
     outs:
       - data/processed/processed_data.csv
 
+  encode:
+    cmd: python src/crop_recommendation/pipeline/encoding.py
+    deps:
+      - src/crop_recommendation/pipeline/encoding.py
+      - data/processed/processed_data.csv
+    outs:
+      - data/processed/encoded_data.csv
+
   feature_engineering:
     cmd: python src/crop_recommendation/pipeline/feature_engineering.py
     deps:
       - src/crop_recommendation/pipeline/feature_engineering.py
-      - data/processed/processed_data.csv
+      - data/processed/encoded_data.csv
     outs:
       - data/features/featured_data.csv
 
@@ -37,17 +45,28 @@ stages:
     deps:
       - src/crop_recommendation/pipeline/model_training.py
       - data/splits/train.csv
-    params:
-      - model_training.random_forest
+      - artifacts/preprocessors/label_encoders.joblib
+      - artifacts/preprocessors/standard_scaler.joblib
+      - artifacts/preprocessors/climate_constants.joblib
     outs:
-      - artifacts/models/random_forest_model.joblib
+      - artifacts/models/ResidualCatBoost_RF.joblib
+      - artifacts/models/ResidualCatBoost_SVC.joblib
+      - artifacts/models/RandomForest_Tuned.joblib
+      - artifacts/models/LightGBM.joblib
+      - artifacts/models/XGBoost.joblib
+      - artifacts/models/MLP.joblib
+      - artifacts/models/CatBoost.joblib
+      - artifacts/models/LogisticRegression.joblib
+      - artifacts/models/VotingClassifier_Ensemble.joblib
+    metrics:
+      - reports/metrics/training_results.csv:
+          cache: false
 
   evaluate_model:
     cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
       - src/crop_recommendation/pipeline/model_eval.py
       - data/splits/test.csv
-      - artifacts/models/random_forest_model.joblib
     metrics:
       - reports/metrics/evaluation_metrics.json:
           cache: false

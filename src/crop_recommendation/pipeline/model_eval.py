@@ -1,43 +1,46 @@
 import os
+import numpy as np
 import pandas as pd
 import logging
-import joblib
 import json
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, confusion_matrix
+import joblib
+
+try:
+    import mlflow
+    HAS_MLFLOW = True
+except ImportError:
+    HAS_MLFLOW = False
+
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    balanced_accuracy_score, cohen_kappa_score, roc_auc_score,
+    classification_report, confusion_matrix
+)
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-import mlflow
-import dagshub
-
+from scipy.stats import ttest_rel, wilcoxon
 
 
 class ModelEvaluation:
-    """
-    Handles loading the trained model and evaluating its performance
-    on the test dataset. Saves metrics and a confusion matrix.
-    """
-
-    def __init__(self, 
-                 test_path: str = "./data/splits/test.csv", 
-                 model_path: str = "./artifacts/models/random_forest_model.joblib", 
-                 metrics_save_path: str = "./reports/metrics/evaluation_metrics.json",
-                 cm_save_path: str = "./reports/metrics/confusion_matrix.png",
-                 log_dir: str = "reports/logs"):
-        """
-        Initializes the ModelEvaluation pipeline.
-
-        Args:
-            test_path (str): Path to the test data CSV.
-            model_path (str): Path to the trained model file.
-            metrics_save_path (str): Path to save the evaluation metrics (JSON).
-            cm_save_path (str): Path to save the confusion matrix plot (PNG).
-            log_dir (str): Directory to store log files.
-        """
+    def __init__(self, test_path=None,
+                 model_dir=None,
+                 feature_dir=None,
+                 metrics_save_path=None,
+                 cm_save_path=None,
+                 log_dir=None):
+        _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        test_path = test_path or os.path.join(_root, "data", "splits", "test.csv")
+        model_dir = model_dir or os.path.join(_root, "artifacts", "models")
+        feature_dir = feature_dir or os.path.join(_root, "artifacts", "preprocessors")
+        metrics_save_path = metrics_save_path or os.path.join(_root, "reports", "metrics", "evaluation_metrics.json")
+        cm_save_path = cm_save_path or os.path.join(_root, "reports", "metrics", "confusion_matrix.png")
+        log_dir = log_dir or os.path.join(_root, "reports", "logs")
         os.makedirs(log_dir, exist_ok=True)
         os.makedirs(os.path.dirname(metrics_save_path), exist_ok=True)
         os.makedirs(os.path.dirname(cm_save_path), exist_ok=True)
 
-        # Logger setup
         self.logger = logging.getLogger("ModelEvaluation")
         self.logger.setLevel(logging.DEBUG)
         if not self.logger.handlers:
@@ -53,133 +56,155 @@ class ModelEvaluation:
             self.logger.addHandler(fh)
 
         self.test_path = test_path
-        self.model_path = model_path
+        self.model_dir = model_dir
+        self.feature_dir = feature_dir
         self.metrics_save_path = metrics_save_path
         self.cm_save_path = cm_save_path
-        self.model = None
         self.logger.info("ModelEvaluation pipeline initialized.")
 
-    def load_model(self):
-        """Loads the trained model from disk."""
-        try:
-            self.logger.info(f"Loading model from: {self.model_path}")
-            self.model = joblib.load(self.model_path)
-            self.logger.info("Model loaded successfully.")
-        except FileNotFoundError:
-            self.logger.error(f"Model file not found at: {self.model_path}")
-            raise
-        except Exception as e:
-            self.logger.exception(f"Error loading model: {str(e)}")
-            raise
+    def load_test_data(self):
+        self.logger.info(f"Loading test data from: {self.test_path}")
+        test_df = pd.read_csv(self.test_path)
+        target_column = 'crop_name_enc'
+        X_test = test_df.drop(columns=[target_column])
+        y_test = test_df[target_column]
+        X_test = X_test.fillna(0)
+        self.logger.info(f"Test features shape: {X_test.shape}")
+        return X_test, y_test
 
-    def load_test_data(self) -> tuple[pd.DataFrame, pd.Series]:
-        """Loads and prepares the test data."""
-        try:
-            self.logger.info(f"Loading test data from: {self.test_path}")
-            test_df = pd.read_csv(self.test_path)
-            
-            target_column = 'crop_name_enc'
-            if target_column not in test_df.columns:
-                self.logger.error(f"Target column '{target_column}' not found in test data.")
-                raise ValueError(f"Target column '{target_column}' not found.")
-                
-            X_test = test_df.drop(columns=[target_column])
-            y_test = test_df[target_column]
-            
-            # Ensure consistency with training (fill NaNs)
-            X_test = X_test.fillna(0)
-            
-            self.logger.info(f"Test features shape: {X_test.shape}")
-            self.logger.info(f"Test target shape: {y_test.shape}")
-            
-            return X_test, y_test
-        except FileNotFoundError:
-            self.logger.error(f"Test data file not found at: {self.test_path}")
-            raise
-        except Exception as e:
-            self.logger.exception(f"Error loading test data: {str(e)}")
-            raise
+    def load_model(self, model_name):
+        model_path = os.path.join(self.model_dir, f"{model_name}.joblib")
+        self.logger.info(f"Loading model from: {model_path}")
+        return joblib.load(model_path)
 
-    def evaluate_model(self, X_test: pd.DataFrame, y_test: pd.Series):
-        """Generates predictions and calculates evaluation metrics."""
-        if self.model is None:
-            self.logger.error("Model is not loaded. Run load_model() first.")
-            raise ValueError("Model has not been loaded.")
-            
-        try:
-            self.logger.info("Generating predictions on test data...")
-            y_pred = self.model.predict(X_test)
-            
-            self.logger.info("Calculating evaluation metrics.")
-            accuracy = accuracy_score(y_test, y_pred)
-            precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
-            
-            report = classification_report(y_test, y_pred, output_dict=True)
-            
-            metrics = {
-                'accuracy': accuracy,
-                'precision_weighted': precision,
-                'recall_weighted': recall,
-                'f1_score_weighted': f1,
-                'classification_report': report
-            }
-            
-            self.logger.info(f"Accuracy: {accuracy:.4f}")
-            self.logger.info(f"Precision (Weighted): {precision:.4f}")
-            self.logger.info(f"Recall (Weighted): {recall:.4f}")
-            self.logger.info(f"F1-Score (Weighted): {f1:.4f}")
-            
-            # Save metrics to JSON
-            with open(self.metrics_save_path, 'w') as f:
-                json.dump(metrics, f, indent=4)
-            self.logger.info(f"Metrics saved to: {self.metrics_save_path}")
+    def evaluate_model(self, model, X_test, y_test, model_name='Model'):
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
 
-            # Generate and save confusion matrix
-            self.save_confusion_matrix(y_test, y_pred)
+        metrics = {
+            'model': model_name,
+            'accuracy': accuracy_score(y_test, y_pred),
+            'balanced_accuracy': balanced_accuracy_score(y_test, y_pred),
+            'precision_weighted': precision_score(y_test, y_pred, average='weighted', zero_division=0),
+            'recall_weighted': recall_score(y_test, y_pred, average='weighted'),
+            'f1_score_weighted': f1_score(y_test, y_pred, average='weighted'),
+            'kappa': cohen_kappa_score(y_test, y_pred),
+        }
+        if y_prob is not None:
+            try:
+                metrics['roc_auc'] = roc_auc_score(y_test, y_prob, average='weighted', multi_class='ovr')
+            except Exception:
+                metrics['roc_auc'] = np.nan
+        else:
+            metrics['roc_auc'] = np.nan
 
-        except Exception as e:
-            self.logger.exception(f"An error occurred during model evaluation: {str(e)}")
-            raise
-            
-    def save_confusion_matrix(self, y_true, y_pred):
-        """Generates, plots, and saves a confusion matrix."""
-        self.logger.info("Generating confusion matrix plot.")
+        report = classification_report(y_test, y_pred, output_dict=True)
+        metrics['classification_report'] = report
+
+        self.logger.info(f"{model_name} - Accuracy: {metrics['accuracy']:.4f}, "
+                         f"F1: {metrics['f1_score_weighted']:.4f}, "
+                         f"Balanced Acc: {metrics['balanced_accuracy']:.4f}")
+        return metrics, y_pred, y_prob
+
+    def save_metrics(self, all_metrics):
+        serializable = {}
+        for name, m in all_metrics.items():
+            serializable[name] = {k: v for k, v in m.items() if k != 'classification_report'}
+        with open(self.metrics_save_path, 'w') as f:
+            json.dump(serializable, f, indent=4)
+        self.logger.info(f"Metrics saved to: {self.metrics_save_path}")
+
+    def save_confusion_matrix(self, y_true, y_pred, model_name='best_model'):
         cm = confusion_matrix(y_true, y_pred)
-        
-        plt.figure(figsize=(12, 10))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title('Confusion Matrix')
-        plt.ylabel('Actual Label')
-        plt.xlabel('Predicted Label')
-        
-        try:
-            plt.savefig(self.cm_save_path, bbox_inches='tight')
-            self.logger.info(f"Confusion matrix plot saved to: {self.cm_save_path}")
-        except Exception as e:
-            self.logger.exception(f"Failed to save confusion matrix plot: {str(e)}")
+        plt.figure(figsize=(20, 18))
+        sns.heatmap(cm, cmap='Blues', annot=True, fmt='d')
+        plt.title(f"Confusion Matrix: {model_name}", fontsize=14)
+        plt.ylabel('Actual')
+        plt.xlabel('Predicted')
+        plt.savefig(self.cm_save_path, bbox_inches='tight')
+        plt.close()
+        self.logger.info(f"Confusion matrix saved to: {self.cm_save_path}")
 
     def run(self):
-        """Executes the full model evaluation pipeline."""
-        self.logger.info("Starting model evaluation run.")
-        self.load_model()
+        self.logger.info("Starting model evaluation pipeline.")
         X_test, y_test = self.load_test_data()
-        self.evaluate_model(X_test, y_test)
-        self.logger.info("Model evaluation pipeline finished.")
+
+        model_names = [
+            'LogisticRegression', 'RandomForest_Tuned', 'LightGBM', 'XGBoost',
+            'MLP', 'CatBoost', 'ResidualCatBoost_SVC', 'ResidualCatBoost_RF',
+            'VotingClassifier_Ensemble'
+        ]
+
+        all_metrics = {}
+        best_model_name = None
+        best_balanced_acc = -1
+
+        for name in model_names:
+            try:
+                model = self.load_model(name)
+                metrics, y_pred, y_prob = self.evaluate_model(model, X_test, y_test, name)
+                all_metrics[name] = metrics
+                if metrics['balanced_accuracy'] > best_balanced_acc:
+                    best_balanced_acc = metrics['balanced_accuracy']
+                    best_model_name = name
+            except FileNotFoundError:
+                self.logger.warning(f"Model file not found: {name}. Skipping.")
+            except Exception as e:
+                self.logger.error(f"Error evaluating {name}: {e}")
+
+        if best_model_name:
+            self.logger.info(f"Best model: {best_model_name} (Balanced Acc: {best_balanced_acc:.4f})")
+            best_model = self.load_model(best_model_name)
+            y_pred = best_model.predict(X_test)
+            self.save_confusion_matrix(y_test, y_pred, best_model_name)
+
+        self.save_metrics(all_metrics)
+        self.logger.info("Model evaluation pipeline completed.")
+
+        # ── MLflow logging ──────────────────────────────────────────────
+        if HAS_MLFLOW:
+            self._log_to_mlflow(all_metrics, best_model_name)
+
+        return all_metrics
+
+    def _log_to_mlflow(self, all_metrics, best_model_name):
+        """Log evaluation metrics and artifacts to MLflow."""
+        import mlflow
+
+        _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "")
+        if not tracking_uri:
+            mlflow_dir = os.path.join(_root, "mlruns")
+            tracking_uri = f"file:///{mlflow_dir.replace(os.sep, '/')}"
+
+        mlflow.set_tracking_uri(tracking_uri)
+        mlflow.set_experiment("crop-recommendation")
+
+        with mlflow.start_run(run_name="evaluation-pipeline"):
+            mlflow.log_param("best_model", best_model_name)
+            mlflow.log_param("num_models_evaluated", len(all_metrics))
+
+            for name, metrics in all_metrics.items():
+                for metric_key in ["accuracy", "balanced_accuracy", "precision_weighted",
+                                   "recall_weighted", "f1_score_weighted", "kappa", "roc_auc"]:
+                    val = metrics.get(metric_key, None)
+                    if val is not None and not (isinstance(val, float) and np.isnan(val)):
+                        mlflow.log_metric(f"{name}_{metric_key}", round(val, 4))
+
+            # Log evaluation metrics JSON
+            if os.path.exists(self.metrics_save_path):
+                mlflow.log_artifact(self.metrics_save_path, artifact_path="reports")
+
+            # Log confusion matrix PNG
+            if os.path.exists(self.cm_save_path):
+                mlflow.log_artifact(self.cm_save_path, artifact_path="reports")
+
+            self.logger.info(f"MLflow evaluation logged to: {tracking_uri}")
 
 
 if __name__ == "__main__":
-    try:
-        evaluator = ModelEvaluation(
-            test_path="./data/splits/test.csv",
-            model_path="./artifacts/models/random_forest_model.joblib",
-            metrics_save_path="./reports/metrics/evaluation_metrics.json",
-            cm_save_path="./reports/metrics/confusion_matrix.png",
-            log_dir="./reports/logs"
-        )
-        evaluator.run()
-        print("\nModel evaluation complete. Metrics and confusion matrix saved.")
-
-    except FileNotFoundError:
-        logging.error("A required file (test.csv or model.joblib) was not found. Please run previous steps.")
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during the evaluation process: {e}")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    log_dir = os.path.join(project_root, "reports", "logs")
+    evaluator = ModelEvaluation(log_dir=log_dir)
+    all_metrics = evaluator.run()
+    print("\nEvaluation complete.")

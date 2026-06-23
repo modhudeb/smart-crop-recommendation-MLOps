@@ -1,9 +1,162 @@
+data_ingestion:
+  raw_data_path: "data/raw/SPAS-Dataset-BD.csv"
+  source_data_path: "data/external/SPAS-Dataset-BD.csv"
+
+split_data:
+  test_size: 0.30
+  random_state: 42
+  stratify_on: "crop_name_enc"
+
+preprocessing:
+  weather_columns:
+    - avg_temp
+    - min_temp
+    - max_temp
+    - avg_humidity
+    - min_relative_humidity
+    - max_relative_humidity
+
+feature_engineering:
+  log_transform_columns:
+    - area
+    - production
+  scale_columns:
+    - area_log
+    - production_log
+    - ap_ratio
+  drop_after_feature_engineering:
+    - area
+    - production
+    - ap_ratio
+    - production_log
+
+augmentation:
+  enabled: true
+  samples_per_class: 100
+  tvae_epochs: 500
+  tvae_enforce_rounding: false
+
 model_training:
-  random_forest:
-    n_estimators: 400
-    max_depth: 31
+  cv_folds: 5
+  random_state: 42
+
+  logistic_regression:
+    max_iter: 1000
     random_state: 42
-    min_samples_split: 2
-    min_samples_leaf: 5
+
+  random_forest_tuned:
+    param_grid:
+      n_estimators: [200, 300, 400]
+      max_depth: [10, 30, 40, null]
+      min_samples_split: [1, 2, 5]
+      min_samples_leaf: [1, 2, 5]
+    n_iter: 10
+    cv: 5
+    scoring: "balanced_accuracy"
+    random_state: 42
     n_jobs: -1
 
+  lightgbm:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 8
+    subsample: 0.7
+    colsample_bytree: 0.6
+    random_state: 42
+    verbose: -1
+
+  xgboost:
+    n_estimators: 300
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: "multi:softprob"
+    eval_metric: "mlogloss"
+    tree_method: "hist"
+    random_state: 42
+    n_jobs: -1
+
+  mlp:
+    hidden_layer_sizes: [32, 16]
+    activation: "relu"
+    max_iter: 400
+    random_state: 42
+
+  catboost:
+    iterations: 200
+    learning_rate: 0.04
+    depth: null
+    loss_function: "MultiClass"
+    eval_metric: "Accuracy"
+    random_seed: 42
+    verbose: 0
+
+  calibrated_catboost_svc:
+    iterations: 200
+    depth: null
+    learning_rate: 0.04
+    val_fraction: 0.3
+    meta_weight: 0.2
+    meta_model: "SVC"
+    meta_model_params:
+      kernel: "linear"
+      probability: true
+    verbose: 0
+    random_state: 42
+
+  calibrated_catboost_rf:
+    iterations: 200
+    depth: null
+    learning_rate: 0.04
+    val_fraction: 0.3
+    meta_weight: 0.2
+    meta_model: "RandomForest"
+    verbose: 0
+    random_state: 42
+
+  voting_classifier:
+    estimators:
+      - name: "rf"
+        type: "RandomForest"
+      - name: "mlp"
+        type: "MLP"
+        hidden_layer_sizes: [32, 16]
+        max_iter: 400
+      - name: "cat"
+        type: "CatBoost"
+        iterations: 200
+        learning_rate: 0.04
+        depth: 6
+    voting: "soft"
+
+artifacts:
+  models_dir: "artifacts/models"
+  preprocessors_dir: "artifacts/preprocessors"
+  model_files:
+    best_model: "ResidualCatBoost_RF.joblib"
+    all_models:
+      - ResidualCatBoost_RF.joblib
+      - ResidualCatBoost_SVC.joblib
+      - RandomForest_Tuned.joblib
+      - LightGBM.joblib
+      - XGBoost.joblib
+      - MLP.joblib
+      - CatBoost.joblib
+      - LogisticRegression.joblib
+      - VotingClassifier_Ensemble.joblib
+  preprocessor_files:
+    label_encoders: "label_encoders.joblib"
+    standard_scaler: "standard_scaler.joblib"
+    climate_constants: "climate_constants.joblib"
+    feature_columns: "feature_columns.joblib"
+
+evaluation:
+  metrics:
+    - accuracy
+    - balanced_accuracy
+    - precision
+    - recall
+    - f1
+    - kappa
+    - roc_auc

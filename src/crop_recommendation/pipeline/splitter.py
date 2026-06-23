@@ -5,30 +5,14 @@ import logging
 
 
 class DataSplit:
-    """
-    Splits the dataset into training and testing sets and saves them to disk.
-    """
-
-    def __init__(self, df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42, 
-                 save_path_train: str = "./data/splits/train.csv", 
-                 save_path_test: str = "./data/splits/test.csv", 
-                 log_dir: str = "reports/logs"):
-        """
-        Initializes the DataSplit pipeline.
-
-        Args:
-            df (pd.DataFrame): The input DataFrame to be split.
-            test_size (float): The proportion of the dataset to include in the test split.
-            random_state (int): Seed used by the random number generator.
-            save_path_train (str): Path to save the training data CSV.
-            save_path_test (str): Path to save the testing data CSV.
-            log_dir (str): Directory to store log files.
-        """
+    def __init__(self, df, test_size=0.30, random_state=42,
+                 save_path_train="./data/splits/train.csv",
+                 save_path_test="./data/splits/test.csv",
+                 log_dir="reports/logs"):
         os.makedirs(log_dir, exist_ok=True)
         os.makedirs(os.path.dirname(save_path_train), exist_ok=True)
         os.makedirs(os.path.dirname(save_path_test), exist_ok=True)
 
-        # Logger setup
         self.logger = logging.getLogger("DataSplit")
         self.logger.setLevel(logging.DEBUG)
         if not self.logger.handlers:
@@ -51,55 +35,41 @@ class DataSplit:
         self.logger.info("DataSplit pipeline initialized.")
 
     def split_data(self):
-        """
-        Performs the train-test split.
-        
-        Assumes 'crop_name_enc' is the target variable (y). 
-        Adjust target_column if your target is different.
-        """
         self.logger.info("Splitting data into training and testing sets.")
-        
-        # Define target and features
-        # Ensure the target column exists
         target_column = 'crop_name_enc'
         if target_column not in self.df.columns:
-            self.logger.error(f"Target column '{target_column}' not found in the DataFrame.")
+            self.logger.error(f"Target column '{target_column}' not found.")
             raise ValueError(f"Target column '{target_column}' not found.")
-            
+
         X = self.df.drop(columns=[target_column])
         y = self.df[target_column]
 
-        # Perform the split
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, 
-            test_size=self.test_size, 
+            X, y,
+            test_size=self.test_size,
             random_state=self.random_state,
-            stratify=y # Stratify to maintain class distribution, useful for classification
+            stratify=y
         )
-        
-        # Combine features and target for saving
+
         train_df = pd.concat([X_train, y_train], axis=1)
         test_df = pd.concat([X_test, y_test], axis=1)
 
         self.logger.info(f"Training set shape: {train_df.shape}")
         self.logger.info(f"Testing set shape: {test_df.shape}")
-        
+
         return train_df, test_df
 
-    def save_splits(self, train_df: pd.DataFrame, test_df: pd.DataFrame):
-        """Saves the train and test DataFrames to CSV files."""
+    def save_splits(self, train_df, test_df):
         try:
             train_df.to_csv(self.save_path_train, index=False)
             self.logger.info(f"Training data saved to: {self.save_path_train}")
-            
             test_df.to_csv(self.save_path_test, index=False)
             self.logger.info(f"Testing data saved to: {self.save_path_test}")
         except Exception as e:
-            self.logger.exception(f"Error saving data splits: {str(e)}")
+            self.logger.exception(f"Error saving data splits: {e}")
             raise
 
     def run(self):
-        """Executes the full data splitting pipeline."""
         self.logger.info("Starting data splitting run.")
         train_df, test_df = self.split_data()
         self.save_splits(train_df, test_df)
@@ -108,27 +78,10 @@ class DataSplit:
 
 
 if __name__ == "__main__":
-    try:
-        featured_data_path = "./data/features/featured_data.csv"
-        processed_data_path = "./data/processed/processed_data.csv"
-        
-        input_path = ""
-        if os.path.exists(featured_data_path):
-            input_path = featured_data_path
-            print(f"Using featured data from: {input_path}")
-        elif os.path.exists(processed_data_path):
-            input_path = processed_data_path
-            print(f"Using processed data from: {input_path}")
-        else:
-            raise FileNotFoundError("No processed or featured data file found.")
-
-        df_input = pd.read_csv(input_path)
-        
-        data_splitter = DataSplit(df=df_input, log_dir="./reports/logs")
-        train_data, test_data = data_splitter.run()
-        
-        print("\nData splitting complete.")
-    except FileNotFoundError as e:
-        logging.error(e)
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during the data splitting process: {e}")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    featured_data_path = os.path.join(project_root, "data", "features", "featured_data.csv")
+    log_dir = os.path.join(project_root, "reports", "logs")
+    df = pd.read_csv(featured_data_path)
+    splitter = DataSplit(df=df, log_dir=log_dir)
+    train_data, test_data = splitter.run()
+    print(f"\nData splitting complete. Train: {train_data.shape}, Test: {test_data.shape}")

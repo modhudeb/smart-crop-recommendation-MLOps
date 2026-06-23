@@ -9,8 +9,8 @@ stages:
       size: 431442
     - path: src/crop_recommendation/pipeline/data_ingestion.py
       hash: md5
-      md5: fc36e5a5db72f37de182b680834bea20
-      size: 3478
+      md5: eb3c8e92f1cfc5ba275ebf7c6abf9f9a
+      size: 2016
     outs:
     - path: data/raw/SPAS-Dataset-BD.csv
       hash: md5
@@ -25,95 +25,146 @@ stages:
       size: 452308
     - path: src/crop_recommendation/pipeline/preprocessing.py
       hash: md5
-      md5: f47e7cc13925d5af14e114da7afb11c1
-      size: 8470
+      md5: eecd2aab4144625f28d2cf500eb88623
+      size: 5766
     outs:
     - path: data/processed/processed_data.csv
       hash: md5
-      md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
-      size: 497458
-  feature_engineering:
-    cmd: python src/crop_recommendation/pipeline/feature_engineering.py
+      md5: eaee9b97c3f7b4f0704fc430734576ad
+      size: 555015
+  encode:
+    cmd: python src/crop_recommendation/pipeline/encoding.py
     deps:
     - path: data/processed/processed_data.csv
       hash: md5
-      md5: 3b8e9a2dbdf6a6fa2e4d8610a5c7901c
-      size: 497458
+      md5: eaee9b97c3f7b4f0704fc430734576ad
+      size: 555015
+    - path: src/crop_recommendation/pipeline/encoding.py
+      hash: md5
+      md5: 429a882fa755495712ff554aef463c32
+      size: 4586
+    outs:
+    - path: data/processed/encoded_data.csv
+      hash: md5
+      md5: 474d8f0f4c04e6daffecd6e72c90a12c
+      size: 456608
+  feature_engineering:
+    cmd: python src/crop_recommendation/pipeline/feature_engineering.py
+    deps:
+    - path: data/processed/encoded_data.csv
+      hash: md5
+      md5: 474d8f0f4c04e6daffecd6e72c90a12c
+      size: 456608
     - path: src/crop_recommendation/pipeline/feature_engineering.py
       hash: md5
-      md5: 780049862b01e0b08228f881a772f0f7
-      size: 5239
+      md5: b23e274b0d9fa4fbc112dbd88593b172
+      size: 4787
     outs:
     - path: data/features/featured_data.csv
       hash: md5
-      md5: 78b01688a46954ae00f71b455cc6b990
-      size: 504391
+      md5: d8419d9b85b12b8fb5af4babe9baffca
+      size: 410287
   split_data:
     cmd: python src/crop_recommendation/pipeline/splitter.py
     deps:
     - path: data/features/featured_data.csv
       hash: md5
-      md5: 78b01688a46954ae00f71b455cc6b990
-      size: 504391
+      md5: d8419d9b85b12b8fb5af4babe9baffca
+      size: 410287
     - path: src/crop_recommendation/pipeline/splitter.py
       hash: md5
-      md5: d4570fcda0409ecdccdc5d7d271f8ef0
-      size: 5517
+      md5: b8027436890513d05c54b9c5a75b5bc0
+      size: 3551
     outs:
     - path: data/splits/test.csv
       hash: md5
-      md5: 08977521ed276b158713071198bccd94
-      size: 101278
+      md5: 5e4a7b0c1127be230ee89ef6fc528432
+      size: 122534
     - path: data/splits/train.csv
       hash: md5
-      md5: 72772ab0d8363c8edb4278cd931a0ef9
-      size: 403541
+      md5: 55ab22969f44d1dec7e31efea52310e3
+      size: 285048
   train_model:
     cmd: python src/crop_recommendation/pipeline/model_training.py
     deps:
+    - path: artifacts/preprocessors/climate_constants.joblib
+      hash: md5
+      md5: 96c038ca70d68eeb678b594c292e4b40
+      size: 192
+    - path: artifacts/preprocessors/label_encoders.joblib
+      hash: md5
+      md5: 0a14f5cbd2fdd0eb325d764516934f78
+      size: 2503
+    - path: artifacts/preprocessors/standard_scaler.joblib
+      hash: md5
+      md5: 49803ff8cd05cd2b8dcd6eb0e305915f
+      size: 959
     - path: data/splits/train.csv
       hash: md5
-      md5: 72772ab0d8363c8edb4278cd931a0ef9
-      size: 403541
+      md5: 55ab22969f44d1dec7e31efea52310e3
+      size: 285048
     - path: src/crop_recommendation/pipeline/model_training.py
       hash: md5
-      md5: 340a630a7a8873d363345e5d29edf8fc
-      size: 6468
-    params:
-      params.yaml:
-        model_training.random_forest:
-          n_estimators: 300
-          max_depth: 10
-          random_state: 52
-          min_samples_split: 2
-          min_samples_leaf: 5
-          n_jobs: -1
+      md5: fcf6b494e0c1227bc843d54202377aea
+      size: 13502
     outs:
-    - path: artifacts/models/random_forest_model.joblib
+    - path: artifacts/models/CatBoost.joblib
       hash: md5
-      md5: ad033508d6fa4605451d02f757e89a15
-      size: 26753641
+      md5: 1084bced5a191aac8ecbb28e80adb586
+      size: 7509539
+    - path: artifacts/models/LightGBM.joblib
+      hash: md5
+      md5: b7695e7d44807495dc4f0955e2aef935
+      size: 82528324
+    - path: artifacts/models/LogisticRegression.joblib
+      hash: md5
+      md5: a3c85264691cd653df1873ecd6592b2d
+      size: 18695
+    - path: artifacts/models/MLP.joblib
+      hash: md5
+      md5: 0c8a29e13333d10de6cf167c65d1ed9e
+      size: 102752
+    - path: artifacts/models/RandomForest_Tuned.joblib
+      hash: md5
+      md5: 2c17e159bf007368beadec5393e6d42d
+      size: 212598457
+    - path: artifacts/models/ResidualCatBoost_RF.joblib
+      hash: md5
+      md5: 72f7fbe5994b08290347cea53958a223
+      size: 96744843
+    - path: artifacts/models/ResidualCatBoost_SVC.joblib
+      hash: md5
+      md5: 7723e564065505c3b74f028ef9858c1e
+      size: 10485202
+    - path: artifacts/models/VotingClassifier_Ensemble.joblib
+      hash: md5
+      md5: 4454926229719ee56daf9461a70f4f78
+      size: 220206248
+    - path: artifacts/models/XGBoost.joblib
+      hash: md5
+      md5: 1d3e2619a4e500ef1976dd395681d4e9
+      size: 31713174
+    - path: reports/metrics/training_results.csv
+      hash: md5
+      md5: 7b7c04d3ee0fdc48da99167be7249bb0
+      size: 1536
   evaluate_model:
     cmd: python src/crop_recommendation/pipeline/model_eval.py
     deps:
     - path: data/splits/test.csv
       hash: md5
-      md5: 08977521ed276b158713071198bccd94
-      size: 101278
-    - path: artifacts/models/random_forest_model.joblib
-      hash: md5
-      md5: ad033508d6fa4605451d02f757e89a15
-      size: 26753641
+      md5: 5e4a7b0c1127be230ee89ef6fc528432
+      size: 122534
     - path: src/crop_recommendation/pipeline/model_eval.py
       hash: md5
-      md5: e1d8bfbe210c30326a1920c0af63d812
-      size: 7884
+      md5: 610a88eb52e17aec578113c3be46574d
+      size: 9134
     outs:
     - path: reports/metrics/confusion_matrix.png
       hash: md5
-      md5: 67ad3c069f0b11ad04c9948681ede2e2
-      size: 91782
+      md5: 57a40798480745fa69d79163006d2b38
+      size: 151109
     - path: reports/metrics/evaluation_metrics.json
       hash: md5
-      md5: 1b4932dd14454f71da07e85c6632c576
-      size: 11613
+      md5: ec06d9951b50db8928e050271271f290
+      size: 2674

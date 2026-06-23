@@ -1,35 +1,16 @@
 import os
-import pandas as pd
 import numpy as np
+import pandas as pd
 import logging
-
-
-
+from sklearn.preprocessing import StandardScaler
 
 
 class FeatureEngineering:
-    """
-    Performs feature engineering on the preprocessed dataset.
-    Handles:
-        - Interaction features between weather and soil
-        - Polynomial features for key numeric columns
-        - Aggregated features by district
-        - Saving the feature-engineered dataset
-    """
-
-    def __init__(self, df: pd.DataFrame, save_path: str = "./data/features/featured_data.csv", log_dir: str = "reports/logs"):
-        """
-        Initializes the FeatureEngineering pipeline.
-
-        Args:
-            df (pd.DataFrame): The preprocessed input DataFrame.
-            save_path (str): The path to save the feature-engineered CSV file.
-            log_dir (str): The directory to store log files.
-        """
+    def __init__(self, df, save_path="./data/features/featured_data.csv",
+                 log_dir="reports/logs"):
         os.makedirs(log_dir, exist_ok=True)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-        # Logger setup
         self.logger = logging.getLogger("FeatureEngineering")
         self.logger.setLevel(logging.DEBUG)
         if not self.logger.handlers:
@@ -46,78 +27,76 @@ class FeatureEngineering:
 
         self.df = df.copy()
         self.save_path = save_path
+        self.scaler = None
+        self.climate_constants = None
         self.logger.info("FeatureEngineering pipeline initialized.")
 
-    def create_weather_interaction_features(self):
-        """Creates interaction features from weather data."""
-        self.logger.info("Creating weather interaction features.")
-        self.df['temp_range'] = self.df['max_temp'] - self.df['min_temp']
-        self.df['humidity_range'] = self.df['max_relative_humidity'] - self.df['min_relative_humidity']
-        # Interaction between temperature and humidity
-        self.df['temp_humidity_interaction'] = self.df['avg_temp'] * self.df['avg_humidity']
+    def compute_climate_constants(self):
+        df_valid = self.df[(self.df['production'] > 0) & (self.df['area'] > 0)].copy()
+        mu_T = df_valid[['max_temp', 'min_temp']].stack().mean()
+        sigma_T = df_valid[['max_temp', 'min_temp']].stack().std()
+        mu_H = df_valid[['max_relative_humidity', 'min_relative_humidity']].stack().mean()
+        sigma_H = df_valid[['max_relative_humidity', 'min_relative_humidity']].stack().std()
+        self.climate_constants = {'mu_T': mu_T, 'sigma_T': sigma_T, 'mu_H': mu_H, 'sigma_H': sigma_H}
+        self.logger.info(f"Climate constants: mu_T={mu_T:.4f}, sigma_T={sigma_T:.4f}, mu_H={mu_H:.4f}, sigma_H={sigma_H:.4f}")
 
-    def create_polynomial_features(self):
-        """Creates polynomial features for 'area' and 'production'."""
-        self.logger.info("Creating polynomial features.")
-        self.df['area_sq'] = self.df['area']**2
-        self.df['production_sq'] = self.df['production']**2
+    def create_climate_risk_score(self):
+        self.logger.info("Creating climate risk score.")
+        cc = self.climate_constants
+        self.df['climate_risk_score'] = (
+            ((self.df['max_temp'] - cc['mu_T']) / cc['sigma_T']) +
+            ((self.df['min_temp'] - cc['mu_T']) / cc['sigma_T']) +
+            ((self.df['max_relative_humidity'] - cc['mu_H']) / cc['sigma_H']) +
+            ((self.df['min_relative_humidity'] - cc['mu_H']) / cc['sigma_H'])
+        )
 
-    def create_district_aggregated_features(self):
-        """Creates aggregated features grouped by district."""
-        self.logger.info("Creating district-level aggregated features.")
-        if 'district_enc' in self.df.columns:
-            # Average production per district
-            avg_prod_by_district = self.df.groupby('district_enc')['production'].transform('mean')
-            self.df['avg_prod_by_district'] = avg_prod_by_district
+    def drop_weather_columns(self):
+        self.logger.info("Dropping raw weather columns.")
+        weather_cols = ['avg_temp', 'avg_humidity', 'max_temp', 'min_temp',
+                        'max_relative_humidity', 'min_relative_humidity']
+        self.df.drop(columns=[c for c in weather_cols if c in self.df.columns], inplace=True)
 
-            # Average area per district
-            avg_area_by_district = self.df.groupby('district_enc')['area'].transform('mean')
-            self.df['avg_area_by_district'] = avg_area_by_district
-        else:
-            self.logger.warning("'district_enc' not found. Skipping district-based features.")
+    def log_transform_and_scale(self):
+        self.logger.info("Log-transforming and scaling numeric features.")
+        self.df['area_log'] = np.log1p(self.df['area'])
+        self.df['production_log'] = np.log1p(self.df['production'])
+        self.scaler = StandardScaler()
+        cols_to_scale = ['area_log', 'production_log', 'ap_ratio']
+        self.df[cols_to_scale] = self.scaler.fit_transform(self.df[cols_to_scale])
 
+    def drop_redundant(self):
+        self.logger.info("Dropping redundant columns (area, production, ap_ratio, production_log).")
+        self.df.drop(columns=['area', 'production', 'ap_ratio', 'production_log'],
+                      inplace=True, errors='ignore')
 
     def save_featured_data(self):
-        """Saves the DataFrame with new features to a CSV file."""
         try:
             self.df.to_csv(self.save_path, index=False)
             self.logger.info(f"Feature-engineered dataset saved to: {self.save_path}")
         except Exception as e:
-            self.logger.exception(f"Error saving featured data: {str(e)}")
+            self.logger.exception(f"Error saving featured data: {e}")
             raise
 
     def run(self):
-        """Executes the full feature engineering pipeline."""
         self.logger.info("Starting feature engineering run.")
-        # self.create_weather_interaction_features()
-        # self.create_polynomial_features()
-        # self.create_district_aggregated_features()
-        
-        # Filling potential NaN values created during feature generation
+        self.compute_climate_constants()
+        self.create_climate_risk_score()
+        self.drop_weather_columns()
+        self.log_transform_and_scale()
+        self.drop_redundant()
         self.df.fillna(0, inplace=True)
-        
         self.save_featured_data()
-        self.logger.info(f"Feature engineering completed. Final DataFrame shape: {self.df.shape}")
+        self.logger.info(f"Feature engineering completed. Final shape: {self.df.shape}")
         return self.df
 
 
 if __name__ == "__main__":
-    try:
-        # Example standalone run
-        processed_data_path = "./data/processed/processed_data.csv"
-        featured_data_path = "./data/features/featured_data.csv"
-        
-        if not os.path.exists(processed_data_path):
-            raise FileNotFoundError(f"Processed data not found at {processed_data_path}. Please run the preprocessing script first.")
-
-        df_processed = pd.read_csv(processed_data_path)
-        
-        feature_engineer = FeatureEngineering(df=df_processed, save_path=featured_data_path, log_dir="./reports/logs")
-        featured_df = feature_engineer.run()
-        
-        print("\nFeature engineering complete.")
-
-    except FileNotFoundError as e:
-        logging.error(e)
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during the feature engineering process: {e}")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    data_path = os.path.join(project_root, "data", "processed", "encoded_data.csv")
+    save_path = os.path.join(project_root, "data", "features", "featured_data.csv")
+    log_dir = os.path.join(project_root, "reports", "logs")
+    df = pd.read_csv(data_path)
+    fe = FeatureEngineering(df=df, save_path=save_path, log_dir=log_dir)
+    featured_df = fe.run()
+    print(f"\nFeature engineering complete. Shape: {featured_df.shape}")
+    print(f"Columns: {list(featured_df.columns)}")
