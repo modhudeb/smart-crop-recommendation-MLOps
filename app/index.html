@@ -101,6 +101,20 @@
     </main>
 </div>
 
+<div id="resultModal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="result-modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <div class="modal-header">
+            <div>
+                <span class="modal-kicker">Crop Match</span>
+                <h2 id="resultTitle">Top 5 Recommendations</h2>
+            </div>
+            <button type="button" id="closeResultModal" class="modal-close" aria-label="Close results">x</button>
+        </div>
+        <div id="topCropHero" class="top-crop-hero"></div>
+        <div id="modalPredictionsList" class="ranked-crops"></div>
+    </div>
+</div>
+
 <script src="main.js"></script>
 </body>
 </html>

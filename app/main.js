@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submitBtn');
     const resultArea = document.getElementById('resultArea');
     const predictionsList = document.getElementById('predictionsList');
+    const resultModal = document.getElementById('resultModal');
+    const closeResultModal = document.getElementById('closeResultModal');
+    const modalPredictionsList = document.getElementById('modalPredictionsList');
+    const topCropHero = document.getElementById('topCropHero');
 
     monthSelects.forEach(select => {
         months.forEach(month => {
@@ -29,6 +33,23 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         predictionsList.innerHTML = '';
         resultArea.classList.add('hidden');
+        topCropHero.innerHTML = `
+            <span class="hero-rank">Scanning field profile</span>
+            <strong>Analyzing...</strong>
+            <span class="hero-confidence">Preparing ranked crop matches</span>
+        `;
+        modalPredictionsList.innerHTML = `
+            <div class="ranked-crop loading-row">
+                <div class="crop-rank">...</div>
+                <div class="crop-details">
+                    <div class="crop-name">Matching climate, season, and region</div>
+                    <div class="crop-confidence">This can take a few seconds for the ensemble model.</div>
+                    <div class="confidence-meter"><span style="width: 62%"></span></div>
+                </div>
+            </div>
+        `;
+        resultModal.classList.remove('hidden');
+        resultModal.setAttribute('aria-hidden', 'false');
     }
 
     function hideLoading() {
@@ -40,28 +61,116 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(msg);
     }
 
-    function displayResults(prediction) {
-        predictionsList.innerHTML = '';
+    function formatConfidence(value) {
+        if (value === null || value === undefined) return 'N/A';
+        return `${Math.round(Number(value) * 100)}%`;
+    }
 
-        if (!prediction || prediction === 'N/A - Invalid Data') {
+    function normalizePredictions(data) {
+        if (Array.isArray(data.predictions) && data.predictions.length) {
+            return data.predictions;
+        }
+        if (data.prediction) {
+            return [{ rank: 1, crop: data.prediction, confidence: null }];
+        }
+        return [];
+    }
+
+    function renderRankedCrop(prediction) {
+        const row = document.createElement('div');
+        row.className = 'ranked-crop';
+
+        const rank = document.createElement('div');
+        rank.className = 'crop-rank';
+        rank.textContent = `#${prediction.rank}`;
+
+        const details = document.createElement('div');
+        details.className = 'crop-details';
+
+        const name = document.createElement('div');
+        name.className = 'crop-name';
+        name.textContent = prediction.crop;
+
+        const confidence = document.createElement('div');
+        confidence.className = 'crop-confidence';
+        confidence.textContent = `Confidence ${formatConfidence(prediction.confidence)}`;
+
+        const meter = document.createElement('div');
+        meter.className = 'confidence-meter';
+        const fill = document.createElement('span');
+        fill.style.width = prediction.confidence === null || prediction.confidence === undefined
+            ? '0%'
+            : `${Math.max(3, Math.round(Number(prediction.confidence) * 100))}%`;
+        meter.appendChild(fill);
+
+        details.appendChild(name);
+        details.appendChild(confidence);
+        details.appendChild(meter);
+        row.appendChild(rank);
+        row.appendChild(details);
+        return row;
+    }
+
+    function displayResults(data) {
+        predictionsList.innerHTML = '';
+        modalPredictionsList.innerHTML = '';
+        topCropHero.innerHTML = '';
+
+        const predictions = normalizePredictions(data);
+        if (!predictions.length) {
             predictionsList.innerHTML = '<div class="prediction-card">No suitable crop found.</div>';
             resultArea.classList.remove('hidden');
-            resultArea.scrollIntoView({ behavior: 'smooth' });
             return;
         }
 
-        const card = document.createElement('div');
-        card.className = 'prediction-card';
+        const top = predictions[0];
+        const heroRank = document.createElement('span');
+        heroRank.className = 'hero-rank';
+        heroRank.textContent = `Rank #${top.rank}`;
 
-        const cropName = document.createElement('span');
-        cropName.className = 'crop-name';
-        cropName.textContent = prediction.toString();
+        const heroName = document.createElement('strong');
+        heroName.textContent = top.crop;
 
-        card.appendChild(cropName);
-        predictionsList.appendChild(card);
-        resultArea.classList.remove('hidden');
-        resultArea.scrollIntoView({ behavior: 'smooth' });
+        const heroConfidence = document.createElement('span');
+        heroConfidence.className = 'hero-confidence';
+        heroConfidence.textContent = `Confidence ${formatConfidence(top.confidence)}`;
+
+        topCropHero.appendChild(heroRank);
+        topCropHero.appendChild(heroName);
+        topCropHero.appendChild(heroConfidence);
+
+        predictions.forEach(prediction => {
+            const compact = document.createElement('div');
+            compact.className = 'prediction-card';
+            compact.innerHTML = `<span class="crop-name">#${prediction.rank} ${prediction.crop}</span><span class="crop-prob">${formatConfidence(prediction.confidence)}</span>`;
+            predictionsList.appendChild(compact);
+            modalPredictionsList.appendChild(renderRankedCrop(prediction));
+        });
+
+        resultArea.classList.add('hidden');
+        resultModal.classList.remove('hidden');
+        resultModal.setAttribute('aria-hidden', 'false');
+        closeResultModal.focus();
     }
+
+    closeResultModal.addEventListener('click', () => {
+        resultModal.classList.add('hidden');
+        resultModal.setAttribute('aria-hidden', 'true');
+    });
+
+    resultModal.addEventListener('click', (event) => {
+        if (event.target === resultModal) {
+            resultModal.classList.add('hidden');
+            resultModal.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !resultModal.classList.contains('hidden')) {
+            resultModal.classList.add('hidden');
+            resultModal.setAttribute('aria-hidden', 'true');
+        }
+    });
 
     function validatePayload(payload) {
         const errors = [];
@@ -125,8 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
 
-            if (data && data.status === 'success' && data.prediction) {
-                displayResults(data.prediction);
+            if (data && data.status === 'success' && (data.prediction || data.predictions)) {
+                displayResults(data);
             } else {
                 throw new Error('Unexpected response format from server.');
             }

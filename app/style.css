@@ -170,3 +170,201 @@ button:disabled {
     color: #2e7d32;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        linear-gradient(rgba(17, 24, 18, 0.72), rgba(17, 24, 18, 0.72)),
+        repeating-linear-gradient(115deg, rgba(111, 148, 58, 0.35) 0 12px, rgba(52, 99, 55, 0.35) 12px 24px);
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.result-modal {
+    width: min(620px, 100%);
+    max-height: min(720px, calc(100vh - 48px));
+    overflow-y: auto;
+    background: #fffdf7;
+    border: 1px solid #d7c27d;
+    border-radius: 8px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    animation: modalRise 0.24s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px 18px;
+    background: linear-gradient(135deg, #264d2c, #6d8f3f);
+    color: #fff;
+}
+
+.modal-kicker {
+    display: block;
+    margin-bottom: 6px;
+    color: #f5d16a;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 4vw, 2rem);
+    line-height: 1.1;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.top-crop-hero {
+    display: grid;
+    gap: 8px;
+    margin: 20px 24px 14px;
+    padding: 18px;
+    border: 1px solid #d9b84f;
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, rgba(247, 210, 106, 0.22), rgba(112, 146, 70, 0.12)),
+        #fffaf0;
+}
+
+.hero-rank,
+.hero-confidence {
+    color: #5e6f2d;
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.top-crop-hero strong {
+    color: #24472a;
+    font-size: clamp(1.7rem, 7vw, 2.7rem);
+    line-height: 1;
+    text-transform: capitalize;
+    overflow-wrap: anywhere;
+}
+
+.ranked-crops {
+    display: grid;
+    gap: 10px;
+    padding: 0 24px 24px;
+}
+
+.ranked-crop {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #e0dbc4;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.crop-rank {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2e7d32;
+    color: #fff;
+    font-weight: 900;
+}
+
+.crop-details {
+    min-width: 0;
+}
+
+.crop-confidence {
+    margin-top: 4px;
+    color: #68705b;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.confidence-meter {
+    height: 8px;
+    margin-top: 9px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #ece8d8;
+}
+
+.confidence-meter span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2e7d32, #d3a928);
+}
+
+.loading-row .confidence-meter span {
+    animation: loadingPulse 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes modalRise {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes loadingPulse {
+    from { width: 32%; opacity: 0.65; }
+    to { width: 88%; opacity: 1; }
+}
+
+@media (max-width: 600px) {
+    .modal-overlay {
+        align-items: stretch;
+        padding: 14px;
+    }
+
+    .result-modal {
+        max-height: calc(100vh - 28px);
+    }
+
+    .modal-header,
+    .top-crop-hero,
+    .ranked-crops {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .top-crop-hero {
+        margin: 16px 16px 12px;
+    }
+
+    .ranked-crops {
+        padding: 0 16px 18px;
+    }
+
+    .ranked-crop {
+        grid-template-columns: 48px 1fr;
+        gap: 10px;
+        padding: 12px;
+    }
+}

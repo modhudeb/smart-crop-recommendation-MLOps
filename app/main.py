@@ -21,7 +21,7 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", os.path.join(PROJECT_ROOT, "artifacts"))
-MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "VotingClassifier_Ensemble")
+MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "ResidualCatBoost_RF")
 FEATURE_COLUMNS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "feature_columns.joblib")
 MODEL_PATH = os.path.join(ARTIFACT_DIR, "models", f"{MODEL_NAME}.joblib")
 ENCODERS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "label_encoders.joblib")
@@ -177,6 +177,32 @@ def data_input_pipeline(user_input, scaler, le_district, le_season, climate_cons
     return processed_df
 
 
+def _top_crop_predictions(model, processed_data, le_crop, limit=5):
+    model_input = processed_data.to_numpy()
+
+    if not hasattr(model, "predict_proba"):
+        pred = int(model.predict(model_input)[0])
+        return [{
+            "rank": 1,
+            "crop": le_crop.inverse_transform([pred])[0],
+            "confidence": None,
+        }]
+
+    probabilities = model.predict_proba(model_input)[0]
+    model_classes = getattr(model, "classes_", np.arange(len(probabilities)))
+    top_indexes = np.argsort(probabilities)[::-1][:limit]
+
+    predictions = []
+    for rank, probability_index in enumerate(top_indexes, start=1):
+        crop_class = int(model_classes[probability_index])
+        predictions.append({
+            "rank": rank,
+            "crop": le_crop.inverse_transform([crop_class])[0],
+            "confidence": round(float(probabilities[probability_index]), 6),
+        })
+    return predictions
+
+
 @app.post("/predict")
 async def predict(input_data: CropInput):
     if not artifacts.get("model"):
@@ -194,11 +220,16 @@ async def predict(input_data: CropInput):
         )
 
         model = artifacts["model"]
-        pred = model.predict(processed_data)
         le_crop = artifacts["le_crop"]
-        crop_name = le_crop.inverse_transform([int(pred[0])])[0]
+        predictions = _top_crop_predictions(model, processed_data, le_crop)
+        crop_name = predictions[0]["crop"]
 
-        return {"status": "success", "prediction": crop_name}
+        return {
+            "status": "success",
+            "prediction": crop_name,
+            "predictions": predictions,
+            "model": MODEL_NAME,
+        }
 
     except Exception as e:
         logger.exception("Prediction failed.")
