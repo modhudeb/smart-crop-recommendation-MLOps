@@ -21,7 +21,7 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", os.path.join(PROJECT_ROOT, "artifacts"))
-MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "ResidualCatBoost_RF")
+MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "VotingClassifier_Ensemble")
 FEATURE_COLUMNS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "feature_columns.joblib")
 MODEL_PATH = os.path.join(ARTIFACT_DIR, "models", f"{MODEL_NAME}.joblib")
 ENCODERS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "label_encoders.joblib")

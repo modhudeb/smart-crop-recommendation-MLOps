@@ -179,9 +179,9 @@ button:disabled {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background:
-        linear-gradient(rgba(17, 24, 18, 0.72), rgba(17, 24, 18, 0.72)),
-        repeating-linear-gradient(115deg, rgba(111, 148, 58, 0.35) 0 12px, rgba(52, 99, 55, 0.35) 12px 24px);
+    background: rgba(17, 24, 18, 0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .modal-overlay.hidden {
