@@ -16,12 +16,10 @@ from sklearn.metrics import (
     classification_report, confusion_matrix
 )
 
-try:
-    import mlflow
-    from mlflow.tracking import MlflowClient
-    HAS_MLFLOW = True
-except ImportError:
-    HAS_MLFLOW = False
+import mlflow
+from mlflow.tracking import MlflowClient
+HAS_MLFLOW = True
+
 
 
 def configure_mlflow(project_root, experiment_name="crop-recommendation"):
