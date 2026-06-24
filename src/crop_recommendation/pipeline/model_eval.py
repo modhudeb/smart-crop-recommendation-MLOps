@@ -4,7 +4,6 @@ import logging
 import joblib
 
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -18,8 +17,10 @@ from sklearn.metrics import (
 
 import mlflow
 from mlflow.tracking import MlflowClient
+
 HAS_MLFLOW = True
 
+matplotlib.use('Agg')
 
 
 def configure_mlflow(project_root, experiment_name="crop-recommendation"):
@@ -180,7 +181,6 @@ class ModelEvaluation:
         self.save_metrics(all_metrics)
         self.logger.info("Model evaluation pipeline completed.")
 
-        # ── MLflow logging ──────────────────────────────────────────────
         if HAS_MLFLOW:
             self._log_to_mlflow(all_metrics, best_model_name)
 
@@ -188,8 +188,6 @@ class ModelEvaluation:
 
     def _log_to_mlflow(self, all_metrics, best_model_name):
         """Log evaluation metrics and artifacts to MLflow."""
-        import mlflow
-
         _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         tracking_uri = configure_mlflow(_root)
 
@@ -204,11 +202,9 @@ class ModelEvaluation:
                     if val is not None and not (isinstance(val, float) and np.isnan(val)):
                         mlflow.log_metric(f"{name}_{metric_key}", round(val, 4))
 
-            # Log evaluation metrics JSON
             if os.path.exists(self.metrics_save_path):
                 mlflow.log_artifact(self.metrics_save_path, artifact_path="reports")
 
-            # Log confusion matrix PNG
             if os.path.exists(self.cm_save_path):
                 mlflow.log_artifact(self.cm_save_path, artifact_path="reports")
 
