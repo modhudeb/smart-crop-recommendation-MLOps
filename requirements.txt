@@ -7,5 +7,5 @@ joblib>=1.2.0
 uvicorn[standard]>=0.21.0
 catboost>=1.2.5
 
-# Optional production server (replace uvicorn)
+# Optional production server 
 gunicorn>=20.1.0
