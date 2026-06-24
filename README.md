@@ -42,19 +42,19 @@ The production model (`ResidualCatBoost_RF`) is a stacked ensemble: a CatBoost b
                          ┌─────────────────────────────────────────┐
                          │           DVC Pipeline                  │
                          │  ingest → preprocess → encode →         │
-                         │  engineer → split → train → evaluate     │
+                         │  engineer → split → train → evaluate    │
                          └───────────────┬─────────────────────────┘
                                          │
                                          ▼
                          ┌─────────────────────────────────────────┐
-                         │         MLflow / DAGsHub                 │
+                         │         MLflow / DAGsHub                │
                          │  experiment tracking & model registry   │
                          └───────────────┬─────────────────────────┘
                                          │
                                          ▼
                          ┌─────────────────────────────────────────┐
                          │      FastAPI Serving Layer              │
-                         │  /predict  /health  static UI          │
+                         │  /predict  /health  static UI           │
                          └───────────────┬─────────────────────────┘
                                          │
                                          ▼
@@ -212,6 +212,12 @@ docker run -p 8000:8000 smart-crop-api
 ```
 
 The image is a slim Python 3.10 base with only production dependencies, running as a non-root user on port 8000.
+
+## Screenshots
+
+| MLflow Model Registry | Docker Container Running |
+|---|---|
+| <img src="images/mlflow-model-register.png" width="100%"> | <img src="images/docker-containerized-run.png" width="100%"> |
 
 ## Visual Analysis
 

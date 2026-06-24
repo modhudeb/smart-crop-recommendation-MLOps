@@ -1,9 +1,20 @@
 import os
+import json
+import logging
+import joblib
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import logging
-import json
-import joblib
+import seaborn as sns
+
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    balanced_accuracy_score, cohen_kappa_score, roc_auc_score,
+    classification_report, confusion_matrix
+)
 
 try:
     import mlflow
@@ -11,16 +22,6 @@ try:
     HAS_MLFLOW = True
 except ImportError:
     HAS_MLFLOW = False
-
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    balanced_accuracy_score, cohen_kappa_score, roc_auc_score,
-    classification_report, confusion_matrix
-)
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 def configure_mlflow(project_root, experiment_name="crop-recommendation"):
