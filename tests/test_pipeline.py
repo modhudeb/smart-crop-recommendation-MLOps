@@ -43,8 +43,8 @@ class TestEncodeSpan:
         result = _encode_span("Nov to Feb")
         assert result[10] == 1  # nov
         assert result[11] == 1  # dec
-        assert result[0] == 1   # jan
-        assert result[1] == 1   # feb
+        assert result[0] == 1  # jan
+        assert result[1] == 1  # feb
         assert sum(result) == 4
 
     def test_returns_zeros_for_invalid(self):

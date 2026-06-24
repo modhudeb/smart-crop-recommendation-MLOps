@@ -1,4 +1,5 @@
 """Model training orchestrator — delegates to model_configs and model_trainer."""
+
 import os
 import json
 import logging
@@ -10,11 +11,13 @@ import numpy as np
 try:
     import mlflow
     from mlflow.tracking import MlflowClient
+
     HAS_MLFLOW = True
 except ImportError:
     HAS_MLFLOW = False
 
 import sys
+
 _PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 _SRC_DIR = os.path.join(_PIPELINE_DIR, "..", "..")
 if _SRC_DIR not in sys.path:
@@ -64,8 +67,7 @@ def configure_mlflow(project_root, experiment_name="crop-recommendation"):
 
 
 class ModelTraining:
-    def __init__(self, train_path=None, model_save_dir=None,
-                 feature_save_dir=None, log_dir=None):
+    def __init__(self, train_path=None, model_save_dir=None, feature_save_dir=None, log_dir=None):
         _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         self.train_path = train_path or os.path.join(_root, "data", "splits", "train.csv")
         self.model_save_dir = model_save_dir or os.path.join(_root, "artifacts", "models")
@@ -82,8 +84,7 @@ class ModelTraining:
             fh = logging.FileHandler(os.path.join(self.log_dir, "model_training.log"))
             ch.setLevel(logging.INFO)
             fh.setLevel(logging.DEBUG)
-            fmt = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                    datefmt="%Y-%m-%d %H:%M:%S")
+            fmt = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
             ch.setFormatter(fmt)
             fh.setFormatter(fmt)
             self.logger.addHandler(ch)
@@ -112,7 +113,10 @@ class ModelTraining:
         target_col = "crop_name_enc"
 
         X_orig, y_orig, X_synth, y_synth, feature_cols = run_tvae_augmentation(
-            train_df, target_col, self.model_save_dir, self.logger,
+            train_df,
+            target_col,
+            self.model_save_dir,
+            self.logger,
         )
         X_full = np.concatenate([X_orig, X_synth])
         y_full = np.concatenate([y_orig, y_synth])
@@ -134,6 +138,7 @@ class ModelTraining:
         # Replace RF placeholder with tuned model
         from sklearn.ensemble import RandomForestClassifier
         from sklearn.base import clone
+
         standard_builders["RandomForest_Tuned"] = lambda: clone(
             RandomForestClassifier(**best_rf_params, random_state=random_state, n_jobs=-1)
         )
@@ -141,8 +146,18 @@ class ModelTraining:
         for name, builder in standard_builders.items():
             model = builder()
             final_model, metrics = train_single_model(
-                name, model, X_orig, y_orig, X_synth, y_synth,
-                X_full, y_full, X_test, y_test, random_state, self.logger,
+                name,
+                model,
+                X_orig,
+                y_orig,
+                X_synth,
+                y_synth,
+                X_full,
+                y_full,
+                X_test,
+                y_test,
+                random_state,
+                self.logger,
             )
             self.models[name] = final_model
             self.results[name] = metrics
@@ -154,8 +169,18 @@ class ModelTraining:
         }.items():
             model = builder()
             final_model, metrics = train_single_model(
-                name, model, X_orig, y_orig, X_synth, y_synth,
-                X_full, y_full, X_test, y_test, random_state, self.logger,
+                name,
+                model,
+                X_orig,
+                y_orig,
+                X_synth,
+                y_synth,
+                X_full,
+                y_full,
+                X_test,
+                y_test,
+                random_state,
+                self.logger,
             )
             self.models[name] = final_model
             self.results[name] = metrics
@@ -168,6 +193,7 @@ class ModelTraining:
         y_pred_v = voting.predict(X_test)
         y_prob_v = voting.predict_proba(X_test)
         from crop_recommendation.pipeline.model_trainer import calculate_metrics
+
         m = calculate_metrics(y_test, y_pred_v, y_prob_v)
         m["model"] = "VotingClassifier_Ensemble"
         self.results["VotingClassifier_Ensemble"] = m
@@ -206,11 +232,20 @@ class ModelTraining:
             mlflow.log_param("test_size", params.get("split_data", {}).get("test_size", 0.30))
             mlflow.log_param("augmentation_enabled", params.get("augmentation", {}).get("enabled", True))
             from crop_recommendation.pipeline.model_trainer import HAS_SDV
+
             mlflow.log_param("sdv_installed", HAS_SDV)
             # log per-model params
-            for section in ["logistic_regression", "random_forest_tuned", "lightgbm",
-                            "xgboost", "mlp", "catboost", "calibrated_catboost_svc",
-                            "calibrated_catboost_rf", "voting_classifier"]:
+            for section in [
+                "logistic_regression",
+                "random_forest_tuned",
+                "lightgbm",
+                "xgboost",
+                "mlp",
+                "catboost",
+                "calibrated_catboost_svc",
+                "calibrated_catboost_rf",
+                "voting_classifier",
+            ]:
                 cfg = params.get("model_training", {}).get(section, {})
                 if isinstance(cfg, dict):
                     for k, v in cfg.items():
@@ -264,10 +299,16 @@ class ModelTraining:
         enc_path = os.path.join(pp_dir, "label_encoders.joblib")
         encoder = joblib.load(enc_path) if os.path.exists(enc_path) else None
         fe = FeatureEngineering.__new__(FeatureEngineering)
-        fe.scaler = joblib.load(os.path.join(pp_dir, "standard_scaler.joblib")) \
-            if os.path.exists(os.path.join(pp_dir, "standard_scaler.joblib")) else None
-        fe.climate_constants = joblib.load(os.path.join(pp_dir, "climate_constants.joblib")) \
-            if os.path.exists(os.path.join(pp_dir, "climate_constants.joblib")) else None
+        fe.scaler = (
+            joblib.load(os.path.join(pp_dir, "standard_scaler.joblib"))
+            if os.path.exists(os.path.join(pp_dir, "standard_scaler.joblib"))
+            else None
+        )
+        fe.climate_constants = (
+            joblib.load(os.path.join(pp_dir, "climate_constants.joblib"))
+            if os.path.exists(os.path.join(pp_dir, "climate_constants.joblib"))
+            else None
+        )
         if encoder and fe.scaler:
             self.save_artifacts(encoder, fe, feature_cols)
 

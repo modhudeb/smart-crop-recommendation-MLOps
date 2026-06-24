@@ -4,26 +4,47 @@ import numpy as np
 import pandas as pd
 import logging
 
-MONTHS = ['january', 'february', 'march', 'april', 'may', 'june',
-          'july', 'august', 'september', 'october', 'november', 'december']
+MONTHS = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
 MONTH_TO_IDX = {m: i for i, m in enumerate(MONTHS)}
 MONTH_ABBR_MAP = {
-    'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april', 'may': 'may',
-    'jun': 'june', 'jul': 'july', 'aug': 'august', 'sep': 'september',
-    'oct': 'october', 'nov': 'november', 'dec': 'december'
+    "jan": "january",
+    "feb": "february",
+    "mar": "march",
+    "apr": "april",
+    "may": "may",
+    "jun": "june",
+    "jul": "july",
+    "aug": "august",
+    "sep": "september",
+    "oct": "october",
+    "nov": "november",
+    "dec": "december",
 }
 
 
 def _clean_month_string(s):
     s = str(s).strip().lower()
     for abbr, full in MONTH_ABBR_MAP.items():
-        s = re.sub(fr'\b{abbr}\b', full, s)
+        s = re.sub(rf"\b{abbr}\b", full, s)
     return s
 
 
 def _month_range_to_vector(s):
     s = _clean_month_string(s)
-    split = re.split(r'\s+to\s+', s)
+    split = re.split(r"\s+to\s+", s)
     vec = [0] * 12
     if len(split) == 2:
         start, end = split
@@ -41,8 +62,7 @@ def _month_range_to_vector(s):
 
 
 class Preprocessing:
-    def __init__(self, df, save_path="./data/processed/processed_data.csv",
-                 log_dir="reports/logs"):
+    def __init__(self, df, save_path="./data/processed/processed_data.csv", log_dir="reports/logs"):
         os.makedirs(log_dir, exist_ok=True)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
@@ -53,8 +73,7 @@ class Preprocessing:
             fh = logging.FileHandler(os.path.join(log_dir, "preprocessing.log"))
             ch.setLevel(logging.INFO)
             fh.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                          datefmt="%Y-%m-%d %H:%M:%S")
+            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
             ch.setFormatter(formatter)
             fh.setFormatter(formatter)
             self.logger.addHandler(ch)
@@ -66,40 +85,46 @@ class Preprocessing:
 
     def clean_columns(self):
         self.logger.info("Cleaning column names and categorical string values.")
-        self.df.columns = self.df.columns.str.strip().str.replace(' ', '_').str.lower()
-        for col in ['season', 'crop_name', 'district']:
+        self.df.columns = self.df.columns.str.strip().str.replace(" ", "_").str.lower()
+        for col in ["season", "crop_name", "district"]:
             if col in self.df.columns:
                 self.df[col] = self.df[col].str.strip().str.lower()
-        if 'transplant' in self.df.columns:
-            self.df['transplant'] = self.df['transplant'].apply(_clean_month_string)
+        if "transplant" in self.df.columns:
+            self.df["transplant"] = self.df["transplant"].apply(_clean_month_string)
 
     def process_growth_harvest(self):
         self.logger.info("Processing growth and harvest months into feature vectors.")
-        growth_vectors = self.df['growth'].apply(_month_range_to_vector).to_list()
-        harvest_vectors = self.df['harvest'].apply(_month_range_to_vector).to_list()
-        growth_df = pd.DataFrame(growth_vectors, columns=[f'growth_{m[:3]}' for m in MONTHS])
-        harvest_df = pd.DataFrame(harvest_vectors, columns=[f'harvest_{m[:3]}' for m in MONTHS])
+        growth_vectors = self.df["growth"].apply(_month_range_to_vector).to_list()
+        harvest_vectors = self.df["harvest"].apply(_month_range_to_vector).to_list()
+        growth_df = pd.DataFrame(growth_vectors, columns=[f"growth_{m[:3]}" for m in MONTHS])
+        harvest_df = pd.DataFrame(harvest_vectors, columns=[f"harvest_{m[:3]}" for m in MONTHS])
         self.df = pd.concat([self.df.reset_index(drop=True), growth_df, harvest_df], axis=1)
-        self.df.drop(columns=['growth', 'harvest'], inplace=True)
+        self.df.drop(columns=["growth", "harvest"], inplace=True)
 
     def convert_numeric_and_handle_missing(self):
         self.logger.info("Converting data types, calculating AP ratio, handling missing values.")
-        self.df['area'] = pd.to_numeric(self.df['area'], errors='coerce')
-        self.df['production'] = pd.to_numeric(self.df['production'], errors='coerce')
-        self.df['ap_ratio'] = (self.df['area'] / self.df['production'].replace(0, np.nan)).astype(float)
-        self.df['area'] = self.df['area'].astype(int)
-        self.df['production'] = self.df['production'].astype(int)
-        self.df.dropna(subset=['area', 'production'], inplace=True)
+        self.df["area"] = pd.to_numeric(self.df["area"], errors="coerce")
+        self.df["production"] = pd.to_numeric(self.df["production"], errors="coerce")
+        self.df["ap_ratio"] = (self.df["area"] / self.df["production"].replace(0, np.nan)).astype(float)
+        self.df["area"] = self.df["area"].astype(int)
+        self.df["production"] = self.df["production"].astype(int)
+        self.df.dropna(subset=["area", "production"], inplace=True)
 
-        weather_cols = ['avg_temp', 'min_temp', 'max_temp', 'avg_humidity',
-                        'min_relative_humidity', 'max_relative_humidity']
-        self.df[weather_cols] = self.df[weather_cols].apply(pd.to_numeric, errors='coerce')
+        weather_cols = [
+            "avg_temp",
+            "min_temp",
+            "max_temp",
+            "avg_humidity",
+            "min_relative_humidity",
+            "max_relative_humidity",
+        ]
+        self.df[weather_cols] = self.df[weather_cols].apply(pd.to_numeric, errors="coerce")
 
     def filter_invalid(self):
         self.logger.info("Filtering invalid rows.")
-        self.df = self.df[self.df['crop_name'] != '#ref!'].copy()
-        self.df = self.df[self.df['season'].notna()].copy()
-        self.df = self.df[(self.df['production'] > 0) & (self.df['area'] > 0)].copy()
+        self.df = self.df[self.df["crop_name"] != "#ref!"].copy()
+        self.df = self.df[self.df["season"].notna()].copy()
+        self.df = self.df[(self.df["production"] > 0) & (self.df["area"] > 0)].copy()
 
     def save_processed(self):
         try:

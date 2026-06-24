@@ -6,27 +6,48 @@ import logging
 import joblib
 from sklearn.preprocessing import LabelEncoder
 
-MONTHS = ['january', 'february', 'march', 'april', 'may', 'june',
-          'july', 'august', 'september', 'october', 'november', 'december']
+MONTHS = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
 MONTH_TO_IDX = {m: i for i, m in enumerate(MONTHS)}
 IDX_TO_MONTH = {v: k for k, v in MONTH_TO_IDX.items()}
 MONTH_ABBR_MAP = {
-    'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april', 'may': 'may',
-    'jun': 'june', 'jul': 'july', 'aug': 'august', 'sep': 'september',
-    'oct': 'october', 'nov': 'november', 'dec': 'december'
+    "jan": "january",
+    "feb": "february",
+    "mar": "march",
+    "apr": "april",
+    "may": "may",
+    "jun": "june",
+    "jul": "july",
+    "aug": "august",
+    "sep": "september",
+    "oct": "october",
+    "nov": "november",
+    "dec": "december",
 }
 
 
 def clean_month_string(s):
     s = str(s).strip().lower()
     for abbr, full in MONTH_ABBR_MAP.items():
-        s = re.sub(fr'\b{abbr}\b', full, s)
+        s = re.sub(rf"\b{abbr}\b", full, s)
     return s
 
 
 def month_range_to_vector(s):
     s = clean_month_string(s)
-    split = re.split(r'\s+to\s+', s)
+    split = re.split(r"\s+to\s+", s)
     vec = [0] * 12
     if len(split) == 2:
         start, end = split
@@ -52,11 +73,11 @@ class CategoricalEncoder:
 
     def fit(self, df):
         df = df.copy()
-        df = df[df['crop_name'] != '#ref!']
-        df = df[df['season'].notna()]
-        self.le_crop.fit(df['crop_name'])
-        self.le_season.fit(df['season'])
-        self.le_district.fit(df['district'])
+        df = df[df["crop_name"] != "#ref!"]
+        df = df[df["season"].notna()]
+        self.le_crop.fit(df["crop_name"])
+        self.le_season.fit(df["season"])
+        self.le_district.fit(df["district"])
         self.is_fitted = True
         return self
 
@@ -64,9 +85,9 @@ class CategoricalEncoder:
         if not self.is_fitted:
             raise ValueError("Encoder not fitted. Call .fit() first.")
         df = df.copy()
-        df['crop_name_enc'] = self.le_crop.transform(df['crop_name'])
-        df['season_enc'] = self.le_season.transform(df['season'])
-        df['district_enc'] = self.le_district.transform(df['district'])
+        df["crop_name_enc"] = self.le_crop.transform(df["crop_name"])
+        df["season_enc"] = self.le_season.transform(df["season"])
+        df["district_enc"] = self.le_district.transform(df["district"])
         return df
 
     def fit_transform(self, df):
@@ -93,24 +114,23 @@ def encode_data(df, encoder=None, log_dir="reports/logs"):
     if not logger.handlers:
         ch = logging.StreamHandler()
         fh = logging.FileHandler(os.path.join(log_dir, "encoding.log"))
-        formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                      datefmt="%Y-%m-%d %H:%M:%S")
+        formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
         ch.setFormatter(formatter)
         fh.setFormatter(formatter)
         logger.addHandler(ch)
         logger.addHandler(fh)
 
     df = df.copy()
-    df = df[df['crop_name'] != '#ref!']
-    df = df[df['season'].notna()].copy()
+    df = df[df["crop_name"] != "#ref!"]
+    df = df[df["season"].notna()].copy()
 
     if encoder is None:
         encoder = CategoricalEncoder()
         encoder.fit(df)
 
     df = encoder.transform(df)
-    df['transplant_month'] = df['transplant'].apply(lambda x: MONTH_TO_IDX[clean_month_string(x)])
-    df.drop(columns=['crop_name', 'season', 'district', 'transplant'], inplace=True)
+    df["transplant_month"] = df["transplant"].apply(lambda x: MONTH_TO_IDX[clean_month_string(x)])
+    df.drop(columns=["crop_name", "season", "district", "transplant"], inplace=True)
 
     logger.info(f"Encoded data: {df.shape}, Target classes: {df['crop_name_enc'].nunique()}")
     return df, encoder

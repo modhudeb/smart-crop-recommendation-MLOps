@@ -14,8 +14,7 @@ class DataIngestion:
             fh = logging.FileHandler(os.path.join(log_dir, "data_ingestion.log"))
             ch.setLevel(logging.DEBUG)
             fh.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                          datefmt="%Y-%m-%d %H:%M:%S")
+            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
             ch.setFormatter(formatter)
             fh.setFormatter(formatter)
             self.logger.addHandler(ch)

@@ -28,15 +28,35 @@ ENCODERS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "label_encoders.jobl
 SCALER_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "standard_scaler.joblib")
 CLIMATE_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "climate_constants.joblib")
 
-MONTHS_SHORT = ["jan", "feb", "mar", "apr", "may", "jun",
-                "jul", "aug", "sep", "oct", "nov", "dec"]
-MONTH_FULL = ['january', 'february', 'march', 'april', 'may', 'june',
-              'july', 'august', 'september', 'october', 'november', 'december']
+MONTHS_SHORT = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+MONTH_FULL = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
 MONTH_TO_IDX = {m: i for i, m in enumerate(MONTH_FULL)}
 MONTH_ABBR_MAP = {
-    'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april', 'may': 'may',
-    'jun': 'june', 'jul': 'july', 'aug': 'august', 'sep': 'september',
-    'oct': 'october', 'nov': 'november', 'dec': 'december'
+    "jan": "january",
+    "feb": "february",
+    "mar": "march",
+    "apr": "april",
+    "may": "may",
+    "jun": "june",
+    "jul": "july",
+    "aug": "august",
+    "sep": "september",
+    "oct": "october",
+    "nov": "november",
+    "dec": "december",
 }
 
 artifacts = {}
@@ -95,7 +115,7 @@ class CropInput(BaseModel):
 def _clean_month_string(s):
     s = str(s).strip().lower()
     for abbr, full in MONTH_ABBR_MAP.items():
-        s = re.sub(fr'\b{abbr}\b', full, s)
+        s = re.sub(rf"\b{abbr}\b", full, s)
     return s
 
 
@@ -106,7 +126,7 @@ def _clean_category(s):
 def _encode_span(span):
     vec = [0] * 12
     span = _clean_month_string(span)
-    parts = re.split(r'\s+to\s+', span)
+    parts = re.split(r"\s+to\s+", span)
     parts = [p.strip() for p in parts if p.strip()]
     if len(parts) < 2:
         return vec
@@ -158,10 +178,10 @@ def data_input_pipeline(user_input, scaler, le_district, le_season, climate_cons
 
     cc = climate_constants
     features["climate_risk_score"] = (
-        ((max_temp - cc["mu_T"]) / cc["sigma_T"]) +
-        ((min_temp - cc["mu_T"]) / cc["sigma_T"]) +
-        ((max_rh - cc["mu_H"]) / cc["sigma_H"]) +
-        ((min_rh - cc["mu_H"]) / cc["sigma_H"])
+        ((max_temp - cc["mu_T"]) / cc["sigma_T"])
+        + ((min_temp - cc["mu_T"]) / cc["sigma_T"])
+        + ((max_rh - cc["mu_H"]) / cc["sigma_H"])
+        + ((min_rh - cc["mu_H"]) / cc["sigma_H"])
     )
 
     features["area_log"] = np.log1p(area)
@@ -170,9 +190,7 @@ def data_input_pipeline(user_input, scaler, le_district, le_season, climate_cons
     processed_df = processed_df.reindex(columns=feature_columns, fill_value=0)
 
     if "area_log" in processed_df.columns:
-        processed_df["area_log"] = (
-            processed_df["area_log"] - float(scaler.mean_[0])
-        ) / float(scaler.scale_[0])
+        processed_df["area_log"] = (processed_df["area_log"] - float(scaler.mean_[0])) / float(scaler.scale_[0])
 
     return processed_df
 
@@ -182,11 +200,13 @@ def _top_crop_predictions(model, processed_data, le_crop, limit=5):
 
     if not hasattr(model, "predict_proba"):
         pred = int(model.predict(model_input)[0])
-        return [{
-            "rank": 1,
-            "crop": le_crop.inverse_transform([pred])[0],
-            "confidence": None,
-        }]
+        return [
+            {
+                "rank": 1,
+                "crop": le_crop.inverse_transform([pred])[0],
+                "confidence": None,
+            }
+        ]
 
     probabilities = model.predict_proba(model_input)[0]
     model_classes = getattr(model, "classes_", np.arange(len(probabilities)))
@@ -195,11 +215,13 @@ def _top_crop_predictions(model, processed_data, le_crop, limit=5):
     predictions = []
     for rank, probability_index in enumerate(top_indexes, start=1):
         crop_class = int(model_classes[probability_index])
-        predictions.append({
-            "rank": rank,
-            "crop": le_crop.inverse_transform([crop_class])[0],
-            "confidence": round(float(probabilities[probability_index]), 6),
-        })
+        predictions.append(
+            {
+                "rank": rank,
+                "crop": le_crop.inverse_transform([crop_class])[0],
+                "confidence": round(float(probabilities[probability_index]), 6),
+            }
+        )
     return predictions
 
 
@@ -249,4 +271,5 @@ async def health():
 app.mount("/", StaticFiles(directory=BASE_DIR, html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

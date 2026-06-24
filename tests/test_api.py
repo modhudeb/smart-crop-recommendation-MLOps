@@ -19,6 +19,7 @@ def client():
     os.environ["ARTIFACT_DIR"] = ARTIFACT_DIR
     os.environ["CROP_MODEL_NAME"] = "ResidualCatBoost_RF"
     from app.main import app
+
     with TestClient(app) as test_client:
         yield test_client
 

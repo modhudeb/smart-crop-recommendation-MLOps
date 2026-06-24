@@ -10,9 +10,15 @@ import pandas as pd
 import seaborn as sns
 
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    balanced_accuracy_score, cohen_kappa_score, roc_auc_score,
-    classification_report, confusion_matrix
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    balanced_accuracy_score,
+    cohen_kappa_score,
+    roc_auc_score,
+    classification_report,
+    confusion_matrix,
 )
 
 import mlflow
@@ -20,7 +26,7 @@ from mlflow.tracking import MlflowClient
 
 HAS_MLFLOW = True
 
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 
 
 def configure_mlflow(project_root, experiment_name="crop-recommendation"):
@@ -44,12 +50,9 @@ def configure_mlflow(project_root, experiment_name="crop-recommendation"):
 
 
 class ModelEvaluation:
-    def __init__(self, test_path=None,
-                 model_dir=None,
-                 feature_dir=None,
-                 metrics_save_path=None,
-                 cm_save_path=None,
-                 log_dir=None):
+    def __init__(
+        self, test_path=None, model_dir=None, feature_dir=None, metrics_save_path=None, cm_save_path=None, log_dir=None
+    ):
         _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         test_path = test_path or os.path.join(_root, "data", "splits", "test.csv")
         model_dir = model_dir or os.path.join(_root, "artifacts", "models")
@@ -68,8 +71,7 @@ class ModelEvaluation:
             fh = logging.FileHandler(os.path.join(log_dir, "model_evaluation.log"))
             ch.setLevel(logging.INFO)
             fh.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                          datefmt="%Y-%m-%d %H:%M:%S")
+            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
             ch.setFormatter(formatter)
             fh.setFormatter(formatter)
             self.logger.addHandler(ch)
@@ -85,7 +87,7 @@ class ModelEvaluation:
     def load_test_data(self):
         self.logger.info(f"Loading test data from: {self.test_path}")
         test_df = pd.read_csv(self.test_path)
-        target_column = 'crop_name_enc'
+        target_column = "crop_name_enc"
         X_test = test_df.drop(columns=[target_column])
         y_test = test_df[target_column]
         X_test = X_test.fillna(0)
@@ -97,51 +99,53 @@ class ModelEvaluation:
         self.logger.info(f"Loading model from: {model_path}")
         return joblib.load(model_path)
 
-    def evaluate_model(self, model, X_test, y_test, model_name='Model'):
+    def evaluate_model(self, model, X_test, y_test, model_name="Model"):
         y_pred = model.predict(X_test)
         y_prob = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
 
         metrics = {
-            'model': model_name,
-            'accuracy': accuracy_score(y_test, y_pred),
-            'balanced_accuracy': balanced_accuracy_score(y_test, y_pred),
-            'precision_weighted': precision_score(y_test, y_pred, average='weighted', zero_division=0),
-            'recall_weighted': recall_score(y_test, y_pred, average='weighted'),
-            'f1_score_weighted': f1_score(y_test, y_pred, average='weighted'),
-            'kappa': cohen_kappa_score(y_test, y_pred),
+            "model": model_name,
+            "accuracy": accuracy_score(y_test, y_pred),
+            "balanced_accuracy": balanced_accuracy_score(y_test, y_pred),
+            "precision_weighted": precision_score(y_test, y_pred, average="weighted", zero_division=0),
+            "recall_weighted": recall_score(y_test, y_pred, average="weighted"),
+            "f1_score_weighted": f1_score(y_test, y_pred, average="weighted"),
+            "kappa": cohen_kappa_score(y_test, y_pred),
         }
         if y_prob is not None:
             try:
-                metrics['roc_auc'] = roc_auc_score(y_test, y_prob, average='weighted', multi_class='ovr')
+                metrics["roc_auc"] = roc_auc_score(y_test, y_prob, average="weighted", multi_class="ovr")
             except Exception:
-                metrics['roc_auc'] = np.nan
+                metrics["roc_auc"] = np.nan
         else:
-            metrics['roc_auc'] = np.nan
+            metrics["roc_auc"] = np.nan
 
         report = classification_report(y_test, y_pred, output_dict=True)
-        metrics['classification_report'] = report
+        metrics["classification_report"] = report
 
-        self.logger.info(f"{model_name} - Accuracy: {metrics['accuracy']:.4f}, "
-                         f"F1: {metrics['f1_score_weighted']:.4f}, "
-                         f"Balanced Acc: {metrics['balanced_accuracy']:.4f}")
+        self.logger.info(
+            f"{model_name} - Accuracy: {metrics['accuracy']:.4f}, "
+            f"F1: {metrics['f1_score_weighted']:.4f}, "
+            f"Balanced Acc: {metrics['balanced_accuracy']:.4f}"
+        )
         return metrics, y_pred, y_prob
 
     def save_metrics(self, all_metrics):
         serializable = {}
         for name, m in all_metrics.items():
-            serializable[name] = {k: v for k, v in m.items() if k != 'classification_report'}
-        with open(self.metrics_save_path, 'w') as f:
+            serializable[name] = {k: v for k, v in m.items() if k != "classification_report"}
+        with open(self.metrics_save_path, "w") as f:
             json.dump(serializable, f, indent=4)
         self.logger.info(f"Metrics saved to: {self.metrics_save_path}")
 
-    def save_confusion_matrix(self, y_true, y_pred, model_name='best_model'):
+    def save_confusion_matrix(self, y_true, y_pred, model_name="best_model"):
         cm = confusion_matrix(y_true, y_pred)
         plt.figure(figsize=(20, 18))
-        sns.heatmap(cm, cmap='Blues', annot=True, fmt='d')
+        sns.heatmap(cm, cmap="Blues", annot=True, fmt="d")
         plt.title(f"Confusion Matrix: {model_name}", fontsize=14)
-        plt.ylabel('Actual')
-        plt.xlabel('Predicted')
-        plt.savefig(self.cm_save_path, bbox_inches='tight')
+        plt.ylabel("Actual")
+        plt.xlabel("Predicted")
+        plt.savefig(self.cm_save_path, bbox_inches="tight")
         plt.close()
         self.logger.info(f"Confusion matrix saved to: {self.cm_save_path}")
 
@@ -150,9 +154,15 @@ class ModelEvaluation:
         X_test, y_test = self.load_test_data()
 
         model_names = [
-            'LogisticRegression', 'RandomForest_Tuned', 'LightGBM', 'XGBoost',
-            'MLP', 'CatBoost', 'ResidualCatBoost_SVC', 'ResidualCatBoost_RF',
-            'VotingClassifier_Ensemble'
+            "LogisticRegression",
+            "RandomForest_Tuned",
+            "LightGBM",
+            "XGBoost",
+            "MLP",
+            "CatBoost",
+            "ResidualCatBoost_SVC",
+            "ResidualCatBoost_RF",
+            "VotingClassifier_Ensemble",
         ]
 
         all_metrics = {}
@@ -164,8 +174,8 @@ class ModelEvaluation:
                 model = self.load_model(name)
                 metrics, y_pred, y_prob = self.evaluate_model(model, X_test, y_test, name)
                 all_metrics[name] = metrics
-                if metrics['balanced_accuracy'] > best_balanced_acc:
-                    best_balanced_acc = metrics['balanced_accuracy']
+                if metrics["balanced_accuracy"] > best_balanced_acc:
+                    best_balanced_acc = metrics["balanced_accuracy"]
                     best_model_name = name
             except FileNotFoundError:
                 self.logger.warning(f"Model file not found: {name}. Skipping.")
@@ -196,8 +206,15 @@ class ModelEvaluation:
             mlflow.log_param("num_models_evaluated", len(all_metrics))
 
             for name, metrics in all_metrics.items():
-                for metric_key in ["accuracy", "balanced_accuracy", "precision_weighted",
-                                   "recall_weighted", "f1_score_weighted", "kappa", "roc_auc"]:
+                for metric_key in [
+                    "accuracy",
+                    "balanced_accuracy",
+                    "precision_weighted",
+                    "recall_weighted",
+                    "f1_score_weighted",
+                    "kappa",
+                    "roc_auc",
+                ]:
                     val = metrics.get(metric_key, None)
                     if val is not None and not (isinstance(val, float) and np.isnan(val)):
                         mlflow.log_metric(f"{name}_{metric_key}", round(val, 4))

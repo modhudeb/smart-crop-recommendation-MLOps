@@ -5,10 +5,15 @@ import logging
 
 
 class DataSplit:
-    def __init__(self, df, test_size=0.30, random_state=42,
-                 save_path_train="./data/splits/train.csv",
-                 save_path_test="./data/splits/test.csv",
-                 log_dir="reports/logs"):
+    def __init__(
+        self,
+        df,
+        test_size=0.30,
+        random_state=42,
+        save_path_train="./data/splits/train.csv",
+        save_path_test="./data/splits/test.csv",
+        log_dir="reports/logs",
+    ):
         os.makedirs(log_dir, exist_ok=True)
         os.makedirs(os.path.dirname(save_path_train), exist_ok=True)
         os.makedirs(os.path.dirname(save_path_test), exist_ok=True)
@@ -20,8 +25,7 @@ class DataSplit:
             fh = logging.FileHandler(os.path.join(log_dir, "data_split.log"))
             ch.setLevel(logging.INFO)
             fh.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s",
-                                          datefmt="%Y-%m-%d %H:%M:%S")
+            formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
             ch.setFormatter(formatter)
             fh.setFormatter(formatter)
             self.logger.addHandler(ch)
@@ -36,7 +40,7 @@ class DataSplit:
 
     def split_data(self):
         self.logger.info("Splitting data into training and testing sets.")
-        target_column = 'crop_name_enc'
+        target_column = "crop_name_enc"
         if target_column not in self.df.columns:
             self.logger.error(f"Target column '{target_column}' not found.")
             raise ValueError(f"Target column '{target_column}' not found.")
@@ -45,10 +49,7 @@ class DataSplit:
         y = self.df[target_column]
 
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=y
+            X, y, test_size=self.test_size, random_state=self.random_state, stratify=y
         )
 
         train_df = pd.concat([X_train, y_train], axis=1)

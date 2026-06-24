@@ -18,22 +18,26 @@ MODEL_EXISTS = os.path.exists(MODEL_PATH)
 class TestModelLoading:
     def test_model_loads_successfully(self):
         import joblib
+
         model = joblib.load(MODEL_PATH)
         assert model is not None
 
     def test_model_has_predict_method(self):
         import joblib
+
         model = joblib.load(MODEL_PATH)
         assert hasattr(model, "predict")
 
     def test_model_has_predict_proba(self):
         import joblib
+
         model = joblib.load(MODEL_PATH)
         assert hasattr(model, "predict_proba")
 
     def test_model_predict_returns_valid_shape(self):
         import joblib
         import numpy as np
+
         model = joblib.load(MODEL_PATH)
         sample = np.zeros((1, 29))
         pred = model.predict(sample)
@@ -42,6 +46,7 @@ class TestModelLoading:
     def test_model_predict_proba_returns_probabilities(self):
         import joblib
         import numpy as np
+
         model = joblib.load(MODEL_PATH)
         sample = np.zeros((1, 29))
         proba = model.predict_proba(sample)
