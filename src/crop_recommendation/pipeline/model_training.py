@@ -5,7 +5,6 @@ import logging
 import joblib
 import yaml
 import numpy as np
-import pandas as pd
 
 try:
     import mlflow
@@ -20,9 +19,8 @@ _SRC_DIR = os.path.join(_PIPELINE_DIR, "..", "..")
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from crop_recommendation.pipeline.encoding import CategoricalEncoder
-from crop_recommendation.pipeline.feature_engineering import FeatureEngineering
-from crop_recommendation.pipeline.model_configs import (
+from crop_recommendation.pipeline.feature_engineering import FeatureEngineering  # noqa: E402
+from crop_recommendation.pipeline.model_configs import (  # noqa: E402
     build_logistic_regression,
     build_lightgbm,
     build_xgboost,
@@ -32,7 +30,7 @@ from crop_recommendation.pipeline.model_configs import (
     build_calibrated_catboost_rf,
     build_voting_classifier,
 )
-from crop_recommendation.pipeline.model_trainer import (
+from crop_recommendation.pipeline.model_trainer import (  # noqa: E402
     run_tvae_augmentation,
     tune_random_forest,
     train_single_model,

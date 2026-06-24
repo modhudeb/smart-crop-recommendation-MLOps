@@ -38,7 +38,10 @@ class FeatureEngineering:
         mu_H = df_valid[['max_relative_humidity', 'min_relative_humidity']].stack().mean()
         sigma_H = df_valid[['max_relative_humidity', 'min_relative_humidity']].stack().std()
         self.climate_constants = {'mu_T': mu_T, 'sigma_T': sigma_T, 'mu_H': mu_H, 'sigma_H': sigma_H}
-        self.logger.info(f"Climate constants: mu_T={mu_T:.4f}, sigma_T={sigma_T:.4f}, mu_H={mu_H:.4f}, sigma_H={sigma_H:.4f}")
+        self.logger.info(
+            f"Climate constants: mu_T={mu_T:.4f}, sigma_T={sigma_T:.4f}, "
+            f"mu_H={mu_H:.4f}, sigma_H={sigma_H:.4f}"
+        )
 
     def create_climate_risk_score(self):
         self.logger.info("Creating climate risk score.")
@@ -66,8 +69,10 @@ class FeatureEngineering:
 
     def drop_redundant(self):
         self.logger.info("Dropping redundant columns (area, production, ap_ratio, production_log).")
-        self.df.drop(columns=['area', 'production', 'ap_ratio', 'production_log'],
-                      inplace=True, errors='ignore')
+        self.df.drop(
+            columns=['area', 'production', 'ap_ratio', 'production_log'],
+            inplace=True, errors='ignore',
+        )
 
     def save_featured_data(self):
         try:

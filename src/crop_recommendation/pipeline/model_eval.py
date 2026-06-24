@@ -21,7 +21,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import ttest_rel, wilcoxon
 
 
 def configure_mlflow(project_root, experiment_name="crop-recommendation"):

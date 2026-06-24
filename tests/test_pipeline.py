@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 from app.main import (
     _clean_month_string,
