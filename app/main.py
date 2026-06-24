@@ -16,12 +16,12 @@ logger = logging.getLogger("crop_predictor")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
-SRC_DIR = os.path.join(PROJECT_ROOT, "src")
-if SRC_DIR not in sys.path:
-    sys.path.insert(0, SRC_DIR)
+# Ensure custom model class (model_configs.py) is importable during unpickling
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", os.path.join(PROJECT_ROOT, "artifacts"))
-MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "VotingClassifier_Ensemble")
+MODEL_NAME = os.environ.get("CROP_MODEL_NAME", "ResidualCatBoost_RF")
 FEATURE_COLUMNS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "feature_columns.joblib")
 MODEL_PATH = os.path.join(ARTIFACT_DIR, "models", f"{MODEL_NAME}.joblib")
 ENCODERS_PATH = os.path.join(ARTIFACT_DIR, "preprocessors", "label_encoders.joblib")
