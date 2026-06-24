@@ -14,7 +14,7 @@ COPY artifacts/preprocessors/climate_constants.joblib artifacts/preprocessors/
 COPY artifacts/preprocessors/standard_scaler.joblib  artifacts/preprocessors/
 COPY artifacts/models/ResidualCatBoost_RF.joblib     artifacts/models/
 
-COPY app/main.py .
+COPY app/ .
 
 # Create minimal crop_recommendation package with only model_configs.py.
 # Empty __init__.py files prevent pulling in training-only deps
