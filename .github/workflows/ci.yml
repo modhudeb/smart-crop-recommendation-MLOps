@@ -76,6 +76,9 @@ jobs:
       - name: Pull artifacts from DVC
         run: dvc pull artifacts/
 
+      - name: Verify artifacts downloaded
+        run: ls -la artifacts/preprocessors/ artifacts/models/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
