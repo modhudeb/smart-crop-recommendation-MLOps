@@ -247,9 +247,13 @@ The image is a slim Python 3.10 base with only production dependencies, running 
 
 ## Screenshots
 
-| MLflow Model Registry | Docker Container Running |
-|---|---|
-| <img src="images/mlflow-model-register.png" width="100%"> | <img src="images/docker-containerized-run.png" width="100%"> |
+## MLflow Model Registry
+
+<img src="images/mlflow-model-register.png" width="100%">
+
+## Docker Container Running
+
+<img src="images/docker-containerized-run.png" width="100%">
 
 ## Visual Analysis
 
