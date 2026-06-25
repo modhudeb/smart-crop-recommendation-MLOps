@@ -85,7 +85,38 @@ Run the full reproducible pipeline:
 dvc repro
 ```
 
-Run individual stages:
+### Modular pipeline (recommended)
+
+The pipeline is split so expensive steps are not repeated unnecessarily:
+
+| Layer | Stages | When to run |
+|---|---|---|
+| **Data** | `data_ingestion` → `split_data` | Data or preprocessing code changes |
+| **Prep** | `prepare_training` | Train/test split or augmentation params change |
+| **Models** | `train@<ModelName>` (one stage per model) | Only the model you changed |
+| **Eval** | `aggregate_training_metrics`, `evaluate_model` | After training |
+
+```bash
+# Data only — never retrains models
+dvc repro split_data
+
+# Shared TVAE augmentation + RF tuning (cached, ~2 min)
+dvc repro prepare_training
+
+# Retrain a single model (~30s–2 min each)
+dvc repro train@LightGBM
+dvc repro train@ResidualCatBoost_RF
+
+# Retrain all models (skips unchanged stages automatically)
+dvc repro train
+
+# Pull pre-trained models from remote instead of training
+dvc pull artifacts/models/ResidualCatBoost_RF.joblib
+```
+
+DVC only re-runs a stage when its **dependencies** (code, params, upstream outputs) change. Already-trained models stay cached on disk and in the DVC remote.
+
+Run individual scripts directly:
 
 ```bash
 python src/crop_recommendation/pipeline/data_ingestion.py
@@ -93,7 +124,8 @@ python src/crop_recommendation/pipeline/preprocessing.py
 python src/crop_recommendation/pipeline/encoding.py
 python src/crop_recommendation/pipeline/feature_engineering.py
 python src/crop_recommendation/pipeline/splitter.py
-python src/crop_recommendation/pipeline/model_training.py
+python src/crop_recommendation/pipeline/prepare_training.py
+python src/crop_recommendation/pipeline/train_model_single.py --model LightGBM
 python src/crop_recommendation/pipeline/model_eval.py
 ```
 
@@ -309,7 +341,7 @@ pip install -r requirements-dev.txt   # for testing
 ## Key Design Decisions
 
 - **Stacked ensemble over single model**: CatBoost captures non-linear feature interactions; the RF meta-learner corrects residual errors from probability calibration, yielding +2-3% F1 over CatBoost alone.
-- **DVC for reproducibility**: Every pipeline stage is versioned with explicit inputs/outputs — `dvc repro` reruns only changed stages.
+- **DVC for reproducibility**: Data, prep, and each model are separate cached stages — `dvc repro train@LightGBM` retrains only what changed.
 - **Custom `CalibratedCatBoost` class**: Implements `sklearn` `BaseEstimator`/`ClassifierMixin` interface so the ensemble works with `cross_val_score`, `GridSearchCV`, and other sklearn utilities.
 - **Climate risk score**: A z-score composite of temperature and humidity deviations — compresses 4 correlated climate variables into a single interpretable feature.
 - **Month range encoding**: Binary 12-dim vectors with year-boundary wrapping capture cyclical growing/harvest seasons without ordinal artifacts.
