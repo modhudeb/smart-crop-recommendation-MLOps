@@ -24,6 +24,7 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 from crop_recommendation.pipeline.feature_engineering import FeatureEngineering  # noqa: E402
+from crop_recommendation.pipeline.encoding import CategoricalEncoder  # noqa: E402, F401
 from crop_recommendation.pipeline.model_configs import (  # noqa: E402
     build_logistic_regression,
     build_lightgbm,
@@ -299,16 +300,10 @@ class ModelTraining:
         enc_path = os.path.join(pp_dir, "label_encoders.joblib")
         encoder = joblib.load(enc_path) if os.path.exists(enc_path) else None
         fe = FeatureEngineering.__new__(FeatureEngineering)
-        fe.scaler = (
-            joblib.load(os.path.join(pp_dir, "standard_scaler.joblib"))
-            if os.path.exists(os.path.join(pp_dir, "standard_scaler.joblib"))
-            else None
-        )
-        fe.climate_constants = (
-            joblib.load(os.path.join(pp_dir, "climate_constants.joblib"))
-            if os.path.exists(os.path.join(pp_dir, "climate_constants.joblib"))
-            else None
-        )
+        scaler_path = os.path.join(pp_dir, "standard_scaler.joblib")
+        climate_path = os.path.join(pp_dir, "climate_constants.joblib")
+        fe.scaler = joblib.load(scaler_path) if os.path.exists(scaler_path) else None
+        fe.climate_constants = joblib.load(climate_path) if os.path.exists(climate_path) else None
         if encoder and fe.scaler:
             self.save_artifacts(encoder, fe, feature_cols)
 
@@ -323,14 +318,53 @@ class ModelTraining:
 
 
 if __name__ == "__main__":
+    import argparse
+    import subprocess
+
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    trainer = ModelTraining(
-        train_path=os.path.join(project_root, "data", "splits", "train.csv"),
-        model_save_dir=os.path.join(project_root, "artifacts", "models"),
-        feature_save_dir=os.path.join(project_root, "artifacts", "preprocessors"),
-        log_dir=os.path.join(project_root, "reports", "logs"),
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Train crop recommendation models. "
+            "For MLOps modularity prefer: dvc repro split_data (data only), "
+            "dvc repro train@LightGBM (one model), dvc repro (full pipeline)."
+        )
     )
-    results = trainer.run()
-    print("\nModel training complete.")
-    for name, metrics in results.items():
-        print(f"  {name}: Accuracy={metrics['accuracy']:.4f}, F1={metrics['f1']:.4f}")
+    parser.add_argument(
+        "--model",
+        help="Train a single model via the modular pipeline (delegates to train_model_single.py).",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Train all models in one process (legacy). Prefer `dvc repro` for cached modular runs.",
+    )
+    args = parser.parse_args()
+
+    if args.model:
+        subprocess.run(
+            ["dvc", "repro", f"train@{args.model}"],
+            cwd=project_root,
+            check=True,
+        )
+    elif args.all:
+        trainer = ModelTraining(
+            train_path=os.path.join(project_root, "data", "splits", "train.csv"),
+            model_save_dir=os.path.join(project_root, "artifacts", "models"),
+            feature_save_dir=os.path.join(project_root, "artifacts", "preprocessors"),
+            log_dir=os.path.join(project_root, "reports", "logs"),
+        )
+        results = trainer.run()
+        print("\nModel training complete.")
+        for name, metrics in results.items():
+            print(f"  {name}: Accuracy={metrics['accuracy']:.4f}, F1={metrics['f1']:.4f}")
+    else:
+        parser.print_help()
+        print(
+            "\nExamples:\n"
+            "  dvc repro split_data              # data pipeline only\n"
+            "  dvc repro prepare_training        # shared TVAE + RF tuning\n"
+            "  dvc repro train@LightGBM          # retrain one model\n"
+            "  dvc repro                         # full pipeline\n"
+            "  python model_training.py --all    # legacy monolithic run"
+        )

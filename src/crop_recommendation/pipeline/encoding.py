@@ -100,7 +100,14 @@ class CategoricalEncoder:
         return self.le_crop.inverse_transform(values)
 
     def save(self, filepath):
-        joblib.dump(self, filepath)
+        joblib.dump(
+            {
+                "le_crop": self.le_crop,
+                "le_season": self.le_season,
+                "le_district": self.le_district,
+            },
+            filepath,
+        )
 
     @classmethod
     def load(cls, filepath):

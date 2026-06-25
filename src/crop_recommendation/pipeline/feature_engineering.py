@@ -1,4 +1,5 @@
 import os
+import joblib
 import numpy as np
 import pandas as pd
 import logging
@@ -107,5 +108,9 @@ if __name__ == "__main__":
     df = pd.read_csv(data_path)
     fe = FeatureEngineering(df=df, save_path=save_path, log_dir=log_dir)
     featured_df = fe.run()
+    pp_dir = os.path.join(project_root, "artifacts", "preprocessors")
+    os.makedirs(pp_dir, exist_ok=True)
+    joblib.dump(fe.scaler, os.path.join(pp_dir, "standard_scaler.joblib"))
+    joblib.dump(fe.climate_constants, os.path.join(pp_dir, "climate_constants.joblib"))
     print(f"\nFeature engineering complete. Shape: {featured_df.shape}")
     print(f"Columns: {list(featured_df.columns)}")
