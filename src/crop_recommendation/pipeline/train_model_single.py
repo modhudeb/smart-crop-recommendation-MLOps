@@ -63,9 +63,7 @@ def build_model(model_name, random_state, n_classes, best_rf_params):
     if model_name == "LogisticRegression":
         return build_logistic_regression(random_state)
     if model_name == "RandomForest_Tuned":
-        return clone(
-            RandomForestClassifier(**best_rf_params, random_state=random_state, n_jobs=-1)
-        )
+        return clone(RandomForestClassifier(**best_rf_params, random_state=random_state, n_jobs=-1))
     if model_name == "LightGBM":
         return build_lightgbm(random_state)
     if model_name == "XGBoost":
@@ -167,9 +165,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     model_path = args.model_path or os.path.join(root, "artifacts", "models", f"{args.model}.joblib")
-    metrics_path = args.metrics_path or os.path.join(
-        root, "reports", "metrics", "models", f"{args.model}.json"
-    )
+    metrics_path = args.metrics_path or os.path.join(root, "reports", "metrics", "models", f"{args.model}.json")
 
     metrics = train_model(
         args.model,
