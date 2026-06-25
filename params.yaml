@@ -36,6 +36,19 @@ augmentation:
   tvae_epochs: 500
   tvae_enforce_rounding: false
 
+# Each entry becomes its own DVC stage (train@<name>).
+# Retrain only what changed: dvc repro train@LightGBM
+models:
+  - LogisticRegression
+  - RandomForest_Tuned
+  - LightGBM
+  - XGBoost
+  - MLP
+  - CatBoost
+  - ResidualCatBoost_SVC
+  - ResidualCatBoost_RF
+  - VotingClassifier_Ensemble
+
 model_training:
   cv_folds: 5
   random_state: 42

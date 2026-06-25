@@ -1,4 +1,5 @@
 stages:
+  # ── Data pipeline (fast, safe to run often) ─────────────────────────────
   data_ingestion:
     cmd: python src/crop_recommendation/pipeline/data_ingestion.py
     deps:
@@ -22,6 +23,7 @@ stages:
       - data/processed/processed_data.csv
     outs:
       - data/processed/encoded_data.csv
+      - artifacts/preprocessors/label_encoders.joblib
 
   feature_engineering:
     cmd: python src/crop_recommendation/pipeline/feature_engineering.py
@@ -30,6 +32,8 @@ stages:
       - data/processed/encoded_data.csv
     outs:
       - data/features/featured_data.csv
+      - artifacts/preprocessors/standard_scaler.joblib
+      - artifacts/preprocessors/climate_constants.joblib
 
   split_data:
     cmd: python src/crop_recommendation/pipeline/splitter.py
@@ -40,15 +44,49 @@ stages:
       - data/splits/train.csv
       - data/splits/test.csv
 
-  train_model:
-    cmd: python src/crop_recommendation/pipeline/model_training.py
+  # ── Training pipeline (modular — each stage cached independently) ───────
+  prepare_training:
+    cmd: python src/crop_recommendation/pipeline/prepare_training.py
     deps:
-      - src/crop_recommendation/pipeline/model_training.py
+      - src/crop_recommendation/pipeline/prepare_training.py
+      - src/crop_recommendation/pipeline/model_trainer.py
       - data/splits/train.csv
-      - artifacts/preprocessors/label_encoders.joblib
-      - artifacts/preprocessors/standard_scaler.joblib
-      - artifacts/preprocessors/climate_constants.joblib
-    metrics:
+      - data/splits/test.csv
+      - params.yaml
+    outs:
+      - data/training/training_arrays.npz
+      - data/training/rf_best_params.json
+      - artifacts/preprocessors/feature_columns.joblib
+
+  train:
+    foreach: ${models}
+    do:
+      cmd: python src/crop_recommendation/pipeline/train_model_single.py --model ${item}
+      deps:
+        - src/crop_recommendation/pipeline/train_model_single.py
+        - src/crop_recommendation/pipeline/model_configs.py
+        - src/crop_recommendation/pipeline/model_trainer.py
+        - data/training/training_arrays.npz
+        - data/training/rf_best_params.json
+        - params.yaml
+      outs:
+        - artifacts/models/${item}.joblib
+        - reports/metrics/models/${item}.json
+
+  aggregate_training_metrics:
+    cmd: python src/crop_recommendation/pipeline/aggregate_training_metrics.py
+    deps:
+      - src/crop_recommendation/pipeline/aggregate_training_metrics.py
+      - artifacts/models/LogisticRegression.joblib
+      - artifacts/models/RandomForest_Tuned.joblib
+      - artifacts/models/LightGBM.joblib
+      - artifacts/models/XGBoost.joblib
+      - artifacts/models/MLP.joblib
+      - artifacts/models/CatBoost.joblib
+      - artifacts/models/ResidualCatBoost_SVC.joblib
+      - artifacts/models/ResidualCatBoost_RF.joblib
+      - artifacts/models/VotingClassifier_Ensemble.joblib
+    outs:
       - reports/metrics/training_results.csv:
           cache: false
 
@@ -57,6 +95,11 @@ stages:
     deps:
       - src/crop_recommendation/pipeline/model_eval.py
       - data/splits/test.csv
+      - artifacts/models/ResidualCatBoost_RF.joblib
+      - artifacts/preprocessors/label_encoders.joblib
+      - artifacts/preprocessors/standard_scaler.joblib
+      - artifacts/preprocessors/climate_constants.joblib
+      - artifacts/preprocessors/feature_columns.joblib
     metrics:
       - reports/metrics/evaluation_metrics.json:
           cache: false
