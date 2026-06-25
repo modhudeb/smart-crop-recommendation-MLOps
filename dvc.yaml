@@ -40,6 +40,21 @@ stages:
       - data/splits/train.csv
       - data/splits/test.csv
 
+  prepare_artifacts:
+    cmd: echo "Artifacts prepared"
+    deps:
+      - artifacts/preprocessors/label_encoders.joblib
+      - artifacts/preprocessors/standard_scaler.joblib
+      - artifacts/preprocessors/climate_constants.joblib
+      - artifacts/preprocessors/feature_columns.joblib
+      - artifacts/models/ResidualCatBoost_RF.joblib
+    outs:
+      - artifacts/preprocessors/label_encoders.joblib
+      - artifacts/preprocessors/standard_scaler.joblib
+      - artifacts/preprocessors/climate_constants.joblib
+      - artifacts/preprocessors/feature_columns.joblib
+      - artifacts/models/ResidualCatBoost_RF.joblib
+
   train_model:
     cmd: python src/crop_recommendation/pipeline/model_training.py
     deps:
