@@ -60,6 +60,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install DVC with S3 support
+        run: pip install dvc[s3]
+
+      - name: Configure DVC remote credentials
+        run: |
+          dvc remote modify myremote access_key_id ${{ secrets.DVC_ACCESS_KEY_ID }}
+          dvc remote modify myremote secret_access_key ${{ secrets.DVC_SECRET_ACCESS_KEY }}
+
+      - name: Pull artifacts from DVC
+        run: dvc pull artifacts/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
