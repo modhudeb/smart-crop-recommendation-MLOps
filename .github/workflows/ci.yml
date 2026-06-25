@@ -73,8 +73,8 @@ jobs:
           dvc remote modify myremote access_key_id ${{ secrets.DVC_ACCESS_KEY_ID }}
           dvc remote modify myremote secret_access_key ${{ secrets.DVC_SECRET_ACCESS_KEY }}
 
-      - name: Pull trained models from DVC
-        run: dvc pull artifacts/models/ResidualCatBoost_RF.joblib
+      - name: Pull artifacts from DVC
+        run: dvc pull
 
       - name: Verify artifacts downloaded
         run: ls -la artifacts/preprocessors/ artifacts/models/
